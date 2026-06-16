@@ -17,6 +17,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (displayName: string, username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateProfile: (displayName: string, username: string, email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -102,6 +104,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const updateProfile = async (displayName: string, username: string, email: string) => {
+    setIsLoading(true);
+    try {
+      const updatedUser = await apiClient.put<User>("/auth/update", {
+        displayName,
+        username,
+        email,
+      });
+      setUser(updatedUser);
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    setIsLoading(true);
+    try {
+      await apiClient.put<{ message: string }>("/auth/change-password", {
+        currentPassword,
+        newPassword,
+      });
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     user,
     token,
@@ -110,6 +142,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
+    updateProfile,
+    changePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

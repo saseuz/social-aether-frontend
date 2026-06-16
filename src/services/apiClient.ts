@@ -165,6 +165,106 @@ export const apiClient = {
         } as T;
       }
 
+      // Mock Handler for Update Profile
+      if (cleanEndpoint === "/auth/update" && options.method === "PUT") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const userId = token.replace("mock-jwt-token-for-", "");
+        const userIdx = db.users.findIndex((u) => u.id === userId);
+        if (userIdx === -1) {
+          throw new ApiError({ status: 401, message: "Session invalid or expired." });
+        }
+
+        const { displayName, username, email } = JSON.parse(options.body as string);
+
+        // Check uniqueness if email/username changed
+        const cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+        if (db.users.some((u) => u.id !== userId && u.email === email)) {
+          throw new ApiError({ status: 400, message: "Email is already mapped to an active node." });
+        }
+        if (db.users.some((u) => u.id !== userId && u.username === cleanUsername)) {
+          throw new ApiError({ status: 400, message: "Handle identifier is already synchronized." });
+        }
+
+        db.users[userIdx].displayName = displayName;
+        db.users[userIdx].username = cleanUsername;
+        db.users[userIdx].email = email;
+        db.users[userIdx].avatarText = displayName.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2);
+
+        saveMockDB(db);
+
+        return {
+          id: db.users[userIdx].id,
+          email: db.users[userIdx].email,
+          displayName: db.users[userIdx].displayName,
+          username: `@${db.users[userIdx].username}`,
+          avatarText: db.users[userIdx].avatarText,
+        } as T;
+      }
+
+      // Mock Handler for Change Password
+      if (cleanEndpoint === "/auth/change-password" && options.method === "PUT") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const userId = token.replace("mock-jwt-token-for-", "");
+        const userIdx = db.users.findIndex((u) => u.id === userId);
+        if (userIdx === -1) {
+          throw new ApiError({ status: 401, message: "Session invalid or expired." });
+        }
+
+        const { currentPassword, newPassword } = JSON.parse(options.body as string);
+
+        if (db.users[userIdx].passwordHash !== currentPassword) {
+          throw new ApiError({ status: 400, message: "Current password validation failed." });
+        }
+
+        db.users[userIdx].passwordHash = newPassword;
+        saveMockDB(db);
+
+        return { message: "Password updated successfully." } as T;
+      }
+
+      // Mock Handler for Fetching Another User's Profile
+      if (cleanEndpoint.startsWith("/users/profile") && options.method === "GET") {
+        const urlObj = new URL(cleanEndpoint, "http://localhost");
+        const handle = urlObj.searchParams.get("username") || cleanEndpoint.split("/").pop() || "";
+        const cleanHandle = handle.replace("@", "");
+
+        const user = db.users.find(u => u.username.toLowerCase() === cleanHandle.toLowerCase());
+        if (!user) {
+          const seedAuthors: Record<string, { displayName: string, avatarText: string, email: string }> = {
+            "astro_coder": { displayName: "Astro Coder", avatarText: "AC", email: "astro@aether.net" },
+            "minimalist_lab": { displayName: "Minimalist Lab", avatarText: "ML", email: "minimalist@aether.net" },
+            "aether_net": { displayName: "Aether Protocol", avatarText: "AP", email: "protocol@aether.net" },
+            "nebula_coder": { displayName: "Cosmic Dev", avatarText: "CD", email: "nebula@aether.net" },
+            "design_taste": { displayName: "Aesthetic Lab", avatarText: "AL", email: "design@aether.net" }
+          };
+
+          const seedUser = seedAuthors[cleanHandle.toLowerCase()];
+          if (seedUser) {
+            return {
+              id: `usr-${cleanHandle}`,
+              displayName: seedUser.displayName,
+              username: `@${cleanHandle}`,
+              avatarText: seedUser.avatarText,
+              email: seedUser.email
+            } as T;
+          }
+
+          throw new ApiError({ status: 404, message: "User node not found in Aether net." });
+        }
+
+        return {
+          id: user.id,
+          displayName: user.displayName,
+          username: `@${user.username}`,
+          avatarText: user.avatarText,
+          email: user.email
+        } as T;
+      }
+
       throw new ApiError({ status: 404, message: `Mock route ${cleanEndpoint} not implemented.` });
     }
 

@@ -1,4 +1,5 @@
 import { TrendingUp, Users, ArrowUpRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Trend {
   tag: string;
@@ -82,26 +83,30 @@ export default function SidebarRight() {
         <div className="flex flex-col gap-4">
           {suggestions.map((user, idx) => (
             <div key={idx} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 overflow-hidden rounded-lg bg-gradient-to-tr from-zinc-800 to-zinc-700 flex items-center justify-center font-bold text-xs text-stellar-white">
+              <Link 
+                to={`/profile/${user.handle.replace("@", "")}`}
+                className="flex items-center gap-3 group/suggestion focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 focus-visible:rounded-lg"
+              >
+                <div className="h-9 w-9 overflow-hidden rounded-lg bg-gradient-to-tr from-zinc-800 to-zinc-700 flex items-center justify-center font-bold text-xs text-stellar-white group-hover/suggestion:border-aether-glow/40 transition-colors border border-cosmic-border/30">
                   {user.avatarText}
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="font-display text-xs font-semibold text-stellar-white truncate leading-tight">
+                  <span className="font-display text-xs font-semibold text-stellar-white group-hover/suggestion:text-aether-glow transition-colors truncate leading-tight">
                     {user.name}
                   </span>
-                  <span className="font-mono text-[10px] text-stardust-gray truncate">
+                  <span className="font-mono text-[10px] text-stardust-gray group-hover/suggestion:text-aether-glow/80 transition-colors truncate">
                     {user.handle}
                   </span>
                 </div>
-              </div>
+              </Link>
               
-              <button 
+              <Link
+                to={`/profile/${user.handle.replace("@", "")}`}
                 className="rounded-lg bg-stellar-white px-3 py-1.5 font-display text-[11px] font-bold text-space-black transition-[background-color,transform,box-shadow] duration-200 hover:bg-zinc-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stellar-white/50"
                 aria-label={`Align with ${user.name}`}
               >
                 Align
-              </button>
+              </Link>
             </div>
           ))}
         </div>

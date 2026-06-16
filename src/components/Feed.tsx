@@ -1,237 +1,34 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import DraftingConsole from "./DraftingConsole";
-import { MessageSquare, Heart, RefreshCw, Share, Sparkles, Orbit, Send } from "lucide-react";
+import { MessageSquare, Heart, RefreshCw, Share, Sparkles, Orbit } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { usePosts } from "../context/PostContext";
+import type { Comment, Post } from "../context/PostContext";
 
-export interface Comment {
-  id: string;
-  authorName: string;
-  authorHandle: string;
-  avatarText: string;
-  content: string;
-  timestamp: string;
-  replies?: Comment[];
-}
-
-export interface Post {
-  id: string;
-  authorName: string;
-  authorHandle: string;
-  avatarText: string;
-  content: string;
-  timestamp: string;
-  likes: number;
-  reposts: number;
-  comments: number;
-  isLiked?: boolean;
-  isReposted?: boolean;
-  commentsList?: Comment[];
-}
+export type { Comment, Post };
 
 export default function Feed() {
   const { user } = useAuth();
+  const { 
+    posts, 
+    handlePublishPost, 
+    handleLike, 
+    handleRepost, 
+    handleAddComment, 
+    handleAddCommentReply 
+  } = usePosts();
+
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [activeReplyCommentId, setActiveReplyCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string>("");
-
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: "1",
-      authorName: "Astro Coder",
-      authorHandle: "@astro_coder",
-      avatarText: "AC",
-      content: "Just configured the solar sails on the React 19 compiler. The latency overhead across interstellar relays has dropped by exactly 42ms. Absolute magic. 🚀☄️",
-      timestamp: "18m ago",
-      likes: 124,
-      reposts: 18,
-      comments: 3,
-      isLiked: true,
-      commentsList: [
-        {
-          id: "c1-1",
-          authorName: "Tech Maven",
-          authorHandle: "@tech_maven",
-          avatarText: "TM",
-          content: "Insane optimization! Did you run it on the Vercel edge runtime too?",
-          timestamp: "12m ago",
-          replies: [
-            {
-              id: "r1",
-              authorName: "Astro Coder",
-              authorHandle: "@astro_coder",
-              avatarText: "AC",
-              content: "Yes! Deployed edge function cold start dropped to 0ms. Insane speed.",
-              timestamp: "10m ago"
-            }
-          ]
-        },
-        {
-          id: "c1-2",
-          authorName: "Lovelace Node",
-          authorHandle: "@lovelace",
-          avatarText: "LN",
-          content: "42ms is huge for deep space routing. Excellent work.",
-          timestamp: "8m ago",
-          replies: []
-        }
-      ]
-    },
-    {
-      id: "2",
-      authorName: "Minimalist Lab",
-      authorHandle: "@minimalist_lab",
-      avatarText: "ML",
-      content: "Visual clarity is not about what you add; it is about what you leave behind. Every rule, every pixel, every font weight must justify its presence. Build light. Breathe deep.",
-      timestamp: "2h ago",
-      likes: 512,
-      reposts: 92,
-      comments: 1,
-      commentsList: [
-        {
-          id: "c2-1",
-          authorName: "Astro Coder",
-          authorHandle: "@astro_coder",
-          avatarText: "AC",
-          content: "Couldn't agree more. Less code, fewer renders, clearer mind.",
-          timestamp: "1h ago",
-          replies: []
-        }
-      ]
-    },
-    {
-      id: "3",
-      authorName: "Aether Protocol",
-      authorHandle: "@aether_net",
-      avatarText: "AP",
-      content: "Welcome to Aether. A premium, glassmorphic space designed for deep content and micro-transmissions. Our nodes are synchronized, and the solar winds are favorable. Synthesize your first message above.",
-      timestamp: "1d ago",
-      likes: 1024,
-      reposts: 420,
-      comments: 1,
-      commentsList: [
-        {
-          id: "c3-1",
-          authorName: "Minimalist Lab",
-          authorHandle: "@minimalist_lab",
-          avatarText: "ML",
-          content: "The glassmorphism looks absolutely stunning. The performance is very responsive.",
-          timestamp: "18h ago",
-          replies: []
-        }
-      ]
-    }
-  ]);
-
-  const handlePublishPost = (text: string) => {
-    const newPost: Post = {
-      id: Date.now().toString(),
-      authorName: user?.displayName || "Aether Pilot",
-      authorHandle: user?.username || "@zypp_pilot",
-      avatarText: user?.avatarText || "Æ",
-      content: text,
-      timestamp: "Just now",
-      likes: 0,
-      reposts: 0,
-      comments: 0,
-      commentsList: []
-    };
-    setPosts([newPost, ...posts]);
-  };
-
-  const handleLike = (id: string) => {
-    setPosts(posts.map(post => {
-      if (post.id === id) {
-        return {
-          ...post,
-          likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-          isLiked: !post.isLiked
-        };
-      }
-      return post;
-    }));
-  };
-
-  const handleRepost = (id: string) => {
-    setPosts(posts.map(post => {
-      if (post.id === id) {
-        return {
-          ...post,
-          reposts: post.isReposted ? post.reposts - 1 : post.reposts + 1,
-          isReposted: !post.isReposted
-        };
-      }
-      return post;
-    }));
-  };
 
   const handleToggleComments = (postId: string) => {
     setExpandedComments(prev => ({
       ...prev,
       [postId]: !prev[postId]
     }));
-  };
-
-  const handleAddComment = (postId: string, text: string) => {
-    if (!text.trim()) return;
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      authorName: user?.displayName || "Aether Pilot",
-      authorHandle: user?.username || "@zypp_pilot",
-      avatarText: user?.avatarText || "Æ",
-      content: text,
-      timestamp: "Just now",
-      replies: []
-    };
-
-    setPosts(prevPosts =>
-      prevPosts.map(post => {
-        if (post.id === postId) {
-          const list = post.commentsList || [];
-          return {
-            ...post,
-            comments: post.comments + 1,
-            commentsList: [...list, newComment]
-          };
-        }
-        return post;
-      })
-    );
-  };
-
-  const handleAddCommentReply = (postId: string, commentId: string, text: string) => {
-    if (!text.trim()) return;
-    const newReply: Comment = {
-      id: Date.now().toString(),
-      authorName: user?.displayName || "Aether Pilot",
-      authorHandle: user?.username || "@zypp_pilot",
-      avatarText: user?.avatarText || "Æ",
-      content: text,
-      timestamp: "Just now"
-    };
-
-    setPosts(prevPosts =>
-      prevPosts.map(post => {
-        if (post.id === postId) {
-          const updatedComments = (post.commentsList || []).map(comment => {
-            if (comment.id === commentId) {
-              const repliesList = comment.replies || [];
-              return {
-                ...comment,
-                replies: [...repliesList, newReply]
-              };
-            }
-            return comment;
-          });
-          return {
-            ...post,
-            comments: post.comments + 1,
-            commentsList: updatedComments
-          };
-        }
-        return post;
-      })
-    );
   };
 
   return (
@@ -264,24 +61,27 @@ export default function Feed() {
           >
             {/* Header info */}
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 overflow-hidden rounded-lg bg-zinc-900 border border-cosmic-border flex items-center justify-center font-bold text-sm text-stellar-white">
+              <Link 
+                to={`/profile/${post.authorHandle.replace("@", "")}`}
+                className="flex items-center gap-3 group/author focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 focus-visible:rounded-lg"
+              >
+                <div className="h-10 w-10 overflow-hidden rounded-lg bg-zinc-900 border border-cosmic-border flex items-center justify-center font-bold text-sm text-stellar-white group-hover/author:border-aether-glow/40 transition-colors">
                   {post.avatarText}
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-display text-sm font-semibold text-stellar-white hover:text-aether-glow cursor-pointer transition-colors leading-tight">
+                    <span className="font-display text-sm font-semibold text-stellar-white group-hover/author:text-aether-glow transition-colors leading-tight">
                       {post.authorName}
                     </span>
                     {post.authorHandle === "@aether_net" ? (
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-nebula-teal" title="Verified System Node" />
                     ) : null}
                   </div>
-                  <span className="font-mono text-[10px] text-stardust-gray">
+                  <span className="font-mono text-[10px] text-stardust-gray group-hover/author:text-aether-glow/85 transition-colors">
                     {post.authorHandle}
                   </span>
                 </div>
-              </div>
+              </Link>
               
               <span className="font-mono text-[10px] text-stardust-gray/60">
                 {post.timestamp}
@@ -370,15 +170,21 @@ export default function Feed() {
                             <div className="absolute left-6 top-9 bottom-0 w-0.5 bg-gradient-to-b from-cosmic-border/30 to-transparent pointer-events-none" />
                           ) : null}
 
-                          <div className="h-6 w-6 rounded bg-gradient-to-tr from-aether-glow/10 to-nebula-teal/10 border border-cosmic-border/30 flex items-center justify-center font-bold text-[9px] text-aether-glow flex-shrink-0">
+                          <Link 
+                            to={`/profile/${comment.authorHandle.replace("@", "")}`}
+                            className="h-6 w-6 rounded bg-gradient-to-tr from-aether-glow/10 to-nebula-teal/10 border border-cosmic-border/30 flex items-center justify-center font-bold text-[9px] text-aether-glow flex-shrink-0 hover:border-aether-glow/40 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 focus-visible:rounded"
+                          >
                             {comment.avatarText}
-                          </div>
+                          </Link>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-stellar-white leading-none">{comment.authorName}</span>
-                                <span className="text-stardust-gray/60 font-mono text-[9px] leading-none">{comment.authorHandle}</span>
-                              </div>
+                              <Link 
+                                to={`/profile/${comment.authorHandle.replace("@", "")}`}
+                                className="flex items-center gap-1.5 text-stellar-white group/commenter focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/30 focus-visible:rounded"
+                              >
+                                <span className="font-semibold leading-none group-hover/commenter:text-aether-glow transition-colors">{comment.authorName}</span>
+                                <span className="text-stardust-gray/60 font-mono text-[9px] leading-none group-hover/commenter:text-aether-glow/85 transition-colors">{comment.authorHandle}</span>
+                              </Link>
                               <span className="text-stardust-gray/40 font-mono text-[9px] leading-none">{comment.timestamp}</span>
                             </div>
                             <p className="mt-1.5 text-stellar-white/90 leading-relaxed break-words">
@@ -450,15 +256,21 @@ export default function Feed() {
                           <div className="ml-8 flex flex-col gap-2 border-l border-cosmic-border/10 pl-3">
                             {(comment.replies || []).map((reply) => (
                               <div key={reply.id} className="flex gap-2.5 items-start text-xs bg-zinc-950/10 p-2.5 rounded-xl border border-cosmic-border/5">
-                                <div className="h-5 w-5 rounded bg-gradient-to-tr from-aether-glow/5 to-nebula-teal/5 border border-cosmic-border/20 flex items-center justify-center font-bold text-[8px] text-aether-glow flex-shrink-0">
+                                <Link 
+                                  to={`/profile/${reply.authorHandle.replace("@", "")}`}
+                                  className="h-5 w-5 rounded bg-gradient-to-tr from-aether-glow/5 to-nebula-teal/5 border border-cosmic-border/20 flex items-center justify-center font-bold text-[8px] text-aether-glow flex-shrink-0 hover:border-aether-glow/40 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 focus-visible:rounded"
+                                >
                                   {reply.avatarText}
-                                </div>
+                                </Link>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="font-semibold text-stellar-white leading-none">{reply.authorName}</span>
-                                      <span className="text-stardust-gray/60 font-mono text-[9px] leading-none">{reply.authorHandle}</span>
-                                    </div>
+                                    <Link 
+                                      to={`/profile/${reply.authorHandle.replace("@", "")}`}
+                                      className="flex items-center gap-1.5 text-stellar-white group/replier focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/30 focus-visible:rounded"
+                                    >
+                                      <span className="font-semibold leading-none group-hover/replier:text-aether-glow transition-colors">{reply.authorName}</span>
+                                      <span className="text-stardust-gray/60 font-mono text-[9px] leading-none group-hover/replier:text-aether-glow/85 transition-colors">{reply.authorHandle}</span>
+                                    </Link>
                                     <span className="text-stardust-gray/40 font-mono text-[9px] leading-none">{reply.timestamp}</span>
                                   </div>
                                   <p className="mt-1 text-stellar-white/85 leading-relaxed break-words">

@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
 import { 
   Compass, 
   Bell, 
@@ -15,20 +16,24 @@ import {
 interface MenuItem {
   icon: React.ReactNode;
   label: string;
-  active?: boolean;
+  path: string;
+  matchPath: string;
 }
 
 export default function SidebarLeft() {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
   const menuItems: MenuItem[] = [
-    { icon: <Compass className="w-5 h-5" />, label: "Explore", active: true },
-    { icon: <Bell className="w-5 h-5" />, label: "Notifications" },
-    { icon: <Mail className="w-5 h-5" />, label: "Messages" },
-    { icon: <Bookmark className="w-5 h-5" />, label: "Bookmarks" },
-    { icon: <User className="w-5 h-5" />, label: "Profile" },
-    { icon: <Settings className="w-5 h-5" />, label: "Settings" },
+    { icon: <Compass className="w-5 h-5" />, label: "Explore", path: "#explore", matchPath: "#explore" },
+    { icon: <Bell className="w-5 h-5" />, label: "Notifications", path: "#notifications", matchPath: "#notifications" },
+    { icon: <Mail className="w-5 h-5" />, label: "Messages", path: "#messages", matchPath: "#messages" },
+    { icon: <Bookmark className="w-5 h-5" />, label: "Bookmarks", path: "#bookmarks", matchPath: "#bookmarks" },
+    { icon: <User className="w-5 h-5" />, label: "Profile", path: "/profile", matchPath: "/profile" },
+    { icon: <Settings className="w-5 h-5" />, label: "Settings", path: "/profile?tab=settings", matchPath: "/profile?tab=settings" },
   ];
+
+  const isConsoleActive = location.pathname === "/";
 
   return (
     <aside className="fixed bottom-0 left-0 z-20 flex h-16 w-full border-t border-cosmic-border bg-space-black/80 backdrop-blur-md px-2 py-1 md:sticky md:top-0 md:h-screen md:w-64 md:flex-col md:border-r md:border-t-0 md:bg-transparent md:px-4 md:py-6 lg:w-72">
@@ -44,35 +49,56 @@ export default function SidebarLeft() {
 
       {/* Nav Menu */}
       <nav className="flex w-full items-center justify-around md:flex-col md:items-start md:gap-1.5">
-        {/* Home Item (special layout rule or standard list) */}
-        <a 
-          href="#feed" 
-          className="flex items-center gap-4 rounded-xl px-4 py-3 text-stardust-gray transition-[background-color,color,border-color,box-shadow,transform] duration-200 hover:bg-zinc-900/60 hover:text-stellar-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 md:w-full"
+        {/* Home/Console Link */}
+        <Link 
+          to="/" 
+          className={`flex items-center gap-4 rounded-xl px-4 py-3 transition-[background-color,color,border-color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 md:w-full ${
+            isConsoleActive 
+              ? "bg-gradient-to-r from-aether-glow/10 to-transparent text-stellar-white border-l-2 border-aether-glow" 
+              : "text-stardust-gray hover:bg-zinc-900/60 hover:text-stellar-white"
+          }`}
         >
-          <Command className="w-5 h-5 text-aether-glow" />
+          <Command className={`w-5 h-5 ${isConsoleActive ? "text-aether-glow" : "text-stardust-gray"}`} />
           <span className="hidden font-medium text-[15px] md:inline">Console</span>
-        </a>
+        </Link>
 
-        {menuItems.map((item, idx) => (
-          <a
-            key={idx}
-            href={`#${item.label.toLowerCase()}`}
-            className={`group flex items-center gap-4 rounded-xl px-4 py-3 transition-[background-color,color,border-color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 md:w-full ${
-              item.active 
-                ? "bg-gradient-to-r from-aether-glow/10 to-transparent text-stellar-white border-l-2 border-aether-glow" 
-                : "text-stardust-gray hover:bg-zinc-900/60 hover:text-stellar-white"
-            }`}
-          >
-            <div className={`transition-transform duration-200 group-hover:scale-110 ${item.active ? "text-aether-glow" : ""}`}>
-              {item.icon}
-            </div>
-            <span className="hidden font-medium text-[15px] md:inline">{item.label}</span>
-          </a>
-        ))}\n\n        {/* Action Button - Only on Desktop */}
+        {menuItems.map((item, idx) => {
+          // Determine active status:
+          // For profile, match "/profile". For settings, match if it ends with tab=settings.
+          const isItemActive = item.path.startsWith("/profile")
+            ? (item.path.includes("tab=settings")
+              ? location.pathname === "/profile" && location.search === "?tab=settings"
+              : location.pathname === "/profile" && location.search !== "?tab=settings")
+            : false;
+
+          return (
+            <Link
+              key={idx}
+              to={item.path}
+              className={`group flex items-center gap-4 rounded-xl px-4 py-3 transition-[background-color,color,border-color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 md:w-full ${
+                isItemActive 
+                  ? "bg-gradient-to-r from-aether-glow/10 to-transparent text-stellar-white border-l-2 border-aether-glow" 
+                  : "text-stardust-gray hover:bg-zinc-900/60 hover:text-stellar-white"
+              }`}
+            >
+              <div className={`transition-transform duration-200 group-hover:scale-110 ${isItemActive ? "text-aether-glow" : ""}`}>
+                {item.icon}
+              </div>
+              <span className="hidden font-medium text-[15px] md:inline">{item.label}</span>
+            </Link>
+          );
+        })}
+
+        {/* Action Button - Only on Desktop */}
         <button 
           onClick={() => {
             const textarea = document.getElementById("post-textarea");
-            if (textarea) textarea.focus();
+            if (textarea) {
+              textarea.focus();
+            } else {
+              // Redirect to main feed if not there, then focus
+              window.location.href = "/";
+            }
           }}
           className="mt-6 hidden w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-aether-glow to-nebula-teal px-4 py-3.5 font-display text-sm font-bold tracking-wide text-stellar-white transition-[background-color,box-shadow,transform,filter] duration-300 hover:shadow-lg hover:shadow-indigo-500/20 hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aether-glow/50 md:flex"
         >
@@ -92,7 +118,7 @@ export default function SidebarLeft() {
               {user?.displayName || "Aether Pilot"}
             </span>
             <span className="font-mono text-[10px] text-stardust-gray truncate">
-              {user?.username || "@zypp_pilot"}
+              {user?.username.startsWith("@") ? user.username : `@${user?.username}`}
             </span>
           </div>
         </div>
