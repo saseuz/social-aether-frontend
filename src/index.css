@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-space-black: #09090b;
+  --color-aether-glow: #6366f1;
+  --color-nebula-teal: #14b8a6;
+  --color-stellar-white: #fafafa;
+  --color-stardust-gray: #a1a1aa;
+  --color-cosmic-border: #27272a;
+
+  --font-display: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Custom base resets */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100svh;
+  background-color: var(--color-space-black);
+  color: var(--color-stellar-white);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  color-scheme: dark;
+}
+
+/* Glassmorphism styling */
+.glass-panel {
+  background: rgba(15, 15, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-interactive {
+  background: rgba(15, 15, 20, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-interactive:hover {
+  background: rgba(25, 25, 35, 0.8);
+  border-color: rgba(99, 102, 241, 0.25);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(99, 102, 241, 0.08);
+}
+
+/* Webkit scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Glowing text and utility styles */
+.text-glow-indigo {
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.text-glow-teal {
+  text-shadow: 0 0 10px rgba(20, 184, 166, 0.4);
+}
