@@ -103,12 +103,15 @@ export default function Profile() {
   // Filter profile user's posts
   const profileCleanHandle = profileUser?.username.startsWith("@") ? profileUser.username : `@${profileUser?.username}`;
   const profilePosts = posts.filter(post => 
-    post.authorHandle.toLowerCase() === profileCleanHandle.toLowerCase()
+    (post.authorHandle.toLowerCase() === profileCleanHandle.toLowerCase() && !post.isRetransmission) ||
+    post.repostedBy?.toLowerCase() === profileCleanHandle.toLowerCase()
   );
 
   // Stats calculation
   const transmissionsCount = profilePosts.length;
-  const totalLikesReceived = profilePosts.reduce((sum, post) => sum + post.likes, 0);
+  const totalLikesReceived = posts
+    .filter(post => post.authorHandle.toLowerCase() === profileCleanHandle.toLowerCase() && !post.isRetransmission)
+    .reduce((sum, post) => sum + post.likes, 0);
 
   // Settings form states
   const [displayName, setDisplayName] = useState(user?.displayName || "");
@@ -362,21 +365,31 @@ export default function Profile() {
                   key={post.id} 
                   className="glass-interactive rounded-2xl p-5 flex flex-col gap-3 group"
                 >
+                  {post.isRetransmission ? (
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-nebula-teal/80 border-b border-cosmic-border/10 pb-2 mb-1">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin-slow text-nebula-teal" style={{ animationDuration: '8s' }} />
+                      <span>Retransmitted by {post.repostedBy}</span>
+                    </div>
+                  ) : null}
+
                   {/* Header info */}
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 overflow-hidden rounded-lg bg-zinc-900 border border-cosmic-border flex items-center justify-center font-bold text-sm text-stellar-white">
+                    <Link 
+                      to={`/profile/${post.authorHandle.replace("@", "")}`}
+                      className="flex items-center gap-3 group/author focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 focus-visible:rounded-lg"
+                    >
+                      <div className="h-10 w-10 overflow-hidden rounded-lg bg-zinc-900 border border-cosmic-border flex items-center justify-center font-bold text-sm text-stellar-white group-hover/author:border-aether-glow/40 transition-colors">
                         {post.avatarText}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-display text-sm font-semibold text-stellar-white leading-tight">
+                        <span className="font-display text-sm font-semibold text-stellar-white group-hover/author:text-aether-glow transition-colors leading-tight">
                           {post.authorName}
                         </span>
-                        <span className="font-mono text-[10px] text-stardust-gray">
+                        <span className="font-mono text-[10px] text-stardust-gray group-hover/author:text-aether-glow/85 transition-colors">
                           {post.authorHandle}
                         </span>
                       </div>
-                    </div>
+                    </Link>
                     <span className="font-mono text-[10px] text-stardust-gray/60">
                       {post.timestamp}
                     </span>

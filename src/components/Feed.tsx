@@ -59,6 +59,13 @@ export default function Feed() {
             key={post.id} 
             className="glass-interactive rounded-2xl p-5 flex flex-col gap-3 group"
           >
+            {post.isRetransmission ? (
+              <div className="flex items-center gap-1.5 font-mono text-[10px] text-nebula-teal/80 border-b border-cosmic-border/10 pb-2 mb-1">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin-slow text-nebula-teal" style={{ animationDuration: '8s' }} />
+                <span>Retransmitted by {post.repostedBy}</span>
+              </div>
+            ) : null}
+
             {/* Header info */}
             <div className="flex items-center justify-between gap-3">
               <Link 

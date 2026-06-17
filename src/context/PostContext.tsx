@@ -24,6 +24,9 @@ export interface Post {
   isLiked?: boolean;
   isReposted?: boolean;
   commentsList?: Comment[];
+  isRetransmission?: boolean;
+  repostedBy?: string;
+  originalPostId?: string;
 }
 
 interface PostContextType {
@@ -181,33 +184,110 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleLike = (id: string) => {
-    setPosts(prev =>
-      prev.map(post => {
-        if (post.id === id) {
+    setPosts(prev => {
+      const targetPost = prev.find(p => p.id === id);
+      if (!targetPost) return prev;
+      
+      const targetId = targetPost.isRetransmission && targetPost.originalPostId
+        ? targetPost.originalPostId
+        : id;
+        
+      const isCurrentlyLiked = !!targetPost.isLiked;
+      
+      return prev.map(post => {
+        const isTargetOrCopy = post.id === targetId || (post.isRetransmission && post.originalPostId === targetId);
+        if (isTargetOrCopy) {
           return {
             ...post,
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            isLiked: !post.isLiked
+            likes: isCurrentlyLiked ? Math.max(0, post.likes - 1) : post.likes + 1,
+            isLiked: !isCurrentlyLiked
           };
         }
         return post;
-      })
-    );
+      });
+    });
   };
 
   const handleRepost = (id: string) => {
-    setPosts(prev =>
-      prev.map(post => {
-        if (post.id === id) {
-          return {
-            ...post,
-            reposts: post.isReposted ? post.reposts - 1 : post.reposts + 1,
-            isReposted: !post.isReposted
-          };
-        }
-        return post;
-      })
-    );
+    const userCleanHandle = user?.username.startsWith("@") ? user.username : `@${user?.username || "zypp_pilot"}`;
+    
+    setPosts(prev => {
+      const targetPost = prev.find(p => p.id === id);
+      if (!targetPost) return prev;
+      
+      const targetId = targetPost.isRetransmission && targetPost.originalPostId
+        ? targetPost.originalPostId
+        : id;
+        
+      const originalPost = prev.find(p => p.id === targetId);
+      if (!originalPost) return prev;
+      
+      const isAlreadyReposted = originalPost.isReposted;
+      
+      if (isAlreadyReposted) {
+        // Toggle off
+        const updated = prev.map(post => {
+          if (post.id === targetId) {
+            return {
+              ...post,
+              reposts: Math.max(0, post.reposts - 1),
+              isReposted: false
+            };
+          }
+          if (post.isRetransmission && post.originalPostId === targetId) {
+            return {
+              ...post,
+              reposts: Math.max(0, post.reposts - 1),
+              isReposted: false
+            };
+          }
+          return post;
+        });
+        
+        return updated.filter(post => 
+          !(post.isRetransmission && post.originalPostId === targetId && post.repostedBy?.toLowerCase() === userCleanHandle.toLowerCase())
+        );
+      } else {
+        // Toggle on
+        const updated = prev.map(post => {
+          if (post.id === targetId) {
+            return {
+              ...post,
+              reposts: post.reposts + 1,
+              isReposted: true
+            };
+          }
+          if (post.isRetransmission && post.originalPostId === targetId) {
+            return {
+              ...post,
+              reposts: post.reposts + 1,
+              isReposted: true
+            };
+          }
+          return post;
+        });
+        
+        const retransmissionPost: Post = {
+          id: `repost-${targetId}-${Date.now()}`,
+          authorName: originalPost.authorName,
+          authorHandle: originalPost.authorHandle,
+          avatarText: originalPost.avatarText,
+          content: originalPost.content,
+          timestamp: "Just now",
+          likes: originalPost.likes,
+          reposts: originalPost.reposts + 1,
+          comments: originalPost.comments,
+          commentsList: originalPost.commentsList || [],
+          isLiked: originalPost.isLiked,
+          isReposted: true,
+          isRetransmission: true,
+          repostedBy: userCleanHandle,
+          originalPostId: targetId
+        };
+        
+        return [retransmissionPost, ...updated];
+      }
+    });
   };
 
   const handleAddComment = (postId: string, text: string) => {
@@ -222,9 +302,17 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
       replies: []
     };
 
-    setPosts(prev =>
-      prev.map(post => {
-        if (post.id === postId) {
+    setPosts(prev => {
+      const targetPost = prev.find(p => p.id === postId);
+      if (!targetPost) return prev;
+      
+      const targetId = targetPost.isRetransmission && targetPost.originalPostId
+        ? targetPost.originalPostId
+        : postId;
+        
+      return prev.map(post => {
+        const isTargetOrCopy = post.id === targetId || (post.isRetransmission && post.originalPostId === targetId);
+        if (isTargetOrCopy) {
           const list = post.commentsList || [];
           return {
             ...post,
@@ -233,8 +321,8 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
           };
         }
         return post;
-      })
-    );
+      });
+    });
   };
 
   const handleAddCommentReply = (postId: string, commentId: string, text: string) => {
@@ -248,9 +336,17 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
       timestamp: "Just now"
     };
 
-    setPosts(prev =>
-      prev.map(post => {
-        if (post.id === postId) {
+    setPosts(prev => {
+      const targetPost = prev.find(p => p.id === postId);
+      if (!targetPost) return prev;
+      
+      const targetId = targetPost.isRetransmission && targetPost.originalPostId
+        ? targetPost.originalPostId
+        : postId;
+        
+      return prev.map(post => {
+        const isTargetOrCopy = post.id === targetId || (post.isRetransmission && post.originalPostId === targetId);
+        if (isTargetOrCopy) {
           const updatedComments = (post.commentsList || []).map(comment => {
             if (comment.id === commentId) {
               const repliesList = comment.replies || [];
@@ -268,8 +364,8 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
           };
         }
         return post;
-      })
-    );
+      });
+    });
   };
 
   return (
