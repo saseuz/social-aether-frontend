@@ -12,6 +12,8 @@ export default function Feed() {
   const { user } = useAuth();
   const { 
     posts, 
+    selectedTag,
+    setSelectedTag,
     handlePublishPost, 
     handleLike, 
     handleRepost, 
@@ -23,6 +25,56 @@ export default function Feed() {
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [activeReplyCommentId, setActiveReplyCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<string>("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const filteredPosts = posts.filter(post => {
+    if (!selectedTag) return true;
+    return post.content.toLowerCase().includes(selectedTag.toLowerCase());
+  });
+
+  const renderPostContent = (content: string) => {
+    const parts = content.split(/(\s+)/);
+    return parts.map((part, index) => {
+      if (part.startsWith("#") && part.length > 1) {
+        // Strip trailing punctuation
+        const cleanTag = part.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+        const isActive = selectedTag?.toLowerCase() === cleanTag.toLowerCase();
+        return (
+          <button
+            key={index}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedTag(isActive ? null : cleanTag);
+            }}
+            className={`transition-colors font-mono font-bold hover:underline cursor-pointer ${
+              isActive ? "text-aether-glow" : "text-nebula-teal hover:text-nebula-teal/80"
+            }`}
+          >
+            {part}
+          </button>
+        );
+      }
+      return part;
+    });
+  };
+
+  const triggerToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(prev => prev === message ? null : prev);
+    }, 3000);
+  };
+
+  const handleShare = (post: Post) => {
+    const postUrl = `${window.location.origin}/profile/${post.authorHandle.replace("@", "")}?post=${post.id}`;
+    navigator.clipboard.writeText(postUrl)
+      .then(() => {
+        triggerToast("Transmission link copied to telemetry!");
+      })
+      .catch(() => {
+        triggerToast("Failed to copy link.");
+      });
+  };
 
   const handleToggleComments = (postId: string) => {
     setExpandedComments(prev => ({
@@ -52,9 +104,31 @@ export default function Feed() {
         <DraftingConsole onPublish={handlePublishPost} />
       </div>
 
+      {/* Active Node Filter Banner */}
+      {selectedTag && (
+        <div className="mb-4 animate-toast flex items-center justify-between gap-3 rounded-2xl border border-aether-glow/30 bg-indigo-950/20 backdrop-blur-md p-4 shadow-[0_0_20px_rgba(99,102,241,0.08)]">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-aether-glow/10 text-aether-glow">
+              <Orbit className="h-4 w-4 animate-spin-slow" />
+            </div>
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-stardust-gray/60">Filtering Feed Node</div>
+              <div className="font-display text-sm font-bold text-stellar-white">{selectedTag}</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setSelectedTag(null)}
+            className="h-8 px-3 rounded-xl border border-cosmic-border bg-zinc-900/30 hover:bg-zinc-900/60 font-mono text-xs text-stardust-gray hover:text-stellar-white transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50"
+            aria-label="Clear node filter"
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
+
       {/* Posts Stream */}
       <div className="flex flex-col gap-4 pb-24">
-        {posts.map((post) => (
+        {filteredPosts.map((post) => (
           <article 
             key={post.id} 
             className="glass-interactive rounded-2xl p-5 flex flex-col gap-3 group"
@@ -97,7 +171,7 @@ export default function Feed() {
 
             {/* Post Content */}
             <p className="text-[15px] leading-relaxed text-stellar-white/95 whitespace-pre-wrap select-text px-1">
-              {post.content}
+              {renderPostContent(post.content)}
             </p>
 
             {/* Post Actions footer */}
@@ -152,6 +226,7 @@ export default function Feed() {
 
               {/* Share Button */}
               <button 
+                onClick={() => handleShare(post)}
                 className="flex items-center gap-2 text-stardust-gray hover:text-indigo-400 transition-[color,background-color] duration-200 text-xs font-mono group/btn focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400/50 focus-visible:rounded-xl"
                 title="Share"
                 aria-label={`Share post by ${post.authorName}`}
@@ -336,6 +411,15 @@ export default function Feed() {
           </article>
         ))}
       </div>
+
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 animate-toast flex items-center gap-2 rounded-xl border border-nebula-teal/30 bg-zinc-950/90 backdrop-blur-md px-4 py-3 shadow-[0_0_20px_rgba(20,184,166,0.15)] transition-all">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-nebula-teal/10 text-nebula-teal">
+            <Sparkles className="h-3 w-3" />
+          </div>
+          <span className="font-mono text-xs text-stellar-white">{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

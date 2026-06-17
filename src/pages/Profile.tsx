@@ -20,9 +20,10 @@ import { useNavigate, useSearchParams, useParams, Link } from "react-router-dom"
 import { apiClient } from "../services/apiClient";
 
 export default function Profile() {
-  const { user, updateProfile, changePassword } = useAuth();
+  const { user, updateProfile, changePassword, connections, toggleConnection } = useAuth();
   const { 
     posts, 
+    setSelectedTag,
     handleLike, 
     handleRepost, 
     handleAddComment, 
@@ -78,26 +79,34 @@ export default function Profile() {
   }, [urlUsername, user, isSelf]);
 
   // Connect/disconnect node (follow/unfollow) logic
-  const [isFollowed, setIsFollowed] = useState(false);
-  useEffect(() => {
-    if (profileUser && !isSelf) {
-      const follows = JSON.parse(localStorage.getItem("aether_follows") || "[]");
-      setIsFollowed(follows.includes(profileUser.username));
-    }
-  }, [profileUser, isSelf]);
+  const isFollowed = profileUser ? connections.includes(profileUser.username.replace("@", "")) : false;
 
   const handleToggleFollow = () => {
     if (!profileUser) return;
-    const follows = JSON.parse(localStorage.getItem("aether_follows") || "[]");
-    let updated;
-    if (isFollowed) {
-      updated = follows.filter((h: string) => h !== profileUser.username);
-      setIsFollowed(false);
-    } else {
-      updated = [...follows, profileUser.username];
-      setIsFollowed(true);
-    }
-    localStorage.setItem("aether_follows", JSON.stringify(updated));
+    toggleConnection(profileUser.username);
+  };
+
+  const renderPostContent = (content: string) => {
+    const parts = content.split(/(\s+)/);
+    return parts.map((part, index) => {
+      if (part.startsWith("#") && part.length > 1) {
+        const cleanTag = part.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+        return (
+          <button
+            key={index}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedTag(cleanTag);
+              navigate("/");
+            }}
+            className="transition-colors font-mono font-bold text-nebula-teal hover:text-nebula-teal/80 hover:underline cursor-pointer bg-transparent border-0 p-0 inline"
+          >
+            {part}
+          </button>
+        );
+      }
+      return part;
+    });
   };
 
   // Filter profile user's posts
@@ -142,6 +151,25 @@ export default function Profile() {
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [activeReplyCommentId, setActiveReplyCommentId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(prev => prev === message ? null : prev);
+    }, 3000);
+  };
+
+  const handleShare = (post: any) => {
+    const postUrl = `${window.location.origin}/profile/${post.authorHandle.replace("@", "")}?post=${post.id}`;
+    navigator.clipboard.writeText(postUrl)
+      .then(() => {
+        triggerToast("Transmission link copied to telemetry!");
+      })
+      .catch(() => {
+        triggerToast("Failed to copy link.");
+      });
+  };
 
   const handleToggleComments = (postId: string) => {
     setExpandedComments(prev => ({
@@ -397,7 +425,7 @@ export default function Profile() {
 
                   {/* Post Content */}
                   <p className="text-[15px] leading-relaxed text-stellar-white/95 whitespace-pre-wrap select-text px-1">
-                    {post.content}
+                    {renderPostContent(post.content)}
                   </p>
 
                   {/* Post Actions footer */}
@@ -452,6 +480,7 @@ export default function Profile() {
 
                     {/* Share Button */}
                     <button 
+                      onClick={() => handleShare(post)}
                       className="flex items-center gap-2 text-stardust-gray hover:text-indigo-400 transition-[color,background-color] duration-200 text-xs font-mono group/btn focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400/50 focus-visible:rounded-xl"
                       title="Share"
                       aria-label={`Share post by ${post.authorName}`}
@@ -850,6 +879,15 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 animate-toast flex items-center gap-2 rounded-xl border border-nebula-teal/30 bg-zinc-950/90 backdrop-blur-md px-4 py-3 shadow-[0_0_20px_rgba(20,184,166,0.15)] transition-all">
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-nebula-teal/10 text-nebula-teal">
+            <Sparkles className="h-3 w-3" />
+          </div>
+          <span className="font-mono text-xs text-stellar-white">{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

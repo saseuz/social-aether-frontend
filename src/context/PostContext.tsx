@@ -31,6 +31,8 @@ export interface Post {
 
 interface PostContextType {
   posts: Post[];
+  selectedTag: string | null;
+  setSelectedTag: (tag: string | null) => void;
   handlePublishPost: (text: string) => void;
   handleLike: (id: string) => void;
   handleRepost: (id: string) => void;
@@ -46,7 +48,7 @@ const SEED_POSTS: Post[] = [
     authorName: "Astro Coder",
     authorHandle: "@astro_coder",
     avatarText: "AC",
-    content: "Just configured the solar sails on the React 19 compiler. The latency overhead across interstellar relays has dropped by exactly 42ms. Absolute magic. 🚀☄️",
+    content: "Just configured the solar sails on the React 19 compiler. The latency overhead across interstellar relays has dropped by exactly 42ms. Absolute magic. #reactCompiler #quantumComputing 🚀☄️",
     timestamp: "18m ago",
     likes: 124,
     reposts: 18,
@@ -87,7 +89,7 @@ const SEED_POSTS: Post[] = [
     authorName: "Minimalist Lab",
     authorHandle: "@minimalist_lab",
     avatarText: "ML",
-    content: "Visual clarity is not about what you add; it is about what you leave behind. Every rule, every pixel, every font weight must justify its presence. Build light. Breathe deep.",
+    content: "Visual clarity is not about what you add; it is about what you leave behind. Every rule, every pixel, every font weight must justify its presence. Build light. Breathe deep. #minimalistDesign #ambientWeb",
     timestamp: "2h ago",
     likes: 512,
     reposts: 92,
@@ -109,7 +111,7 @@ const SEED_POSTS: Post[] = [
     authorName: "Aether Protocol",
     authorHandle: "@aether_net",
     avatarText: "AP",
-    content: "Welcome to Aether. A premium, glassmorphic space designed for deep content and micro-transmissions. Our nodes are synchronized, and the solar winds are favorable. Synthesize your first message above.",
+    content: "Welcome to Aether. A premium, glassmorphic space designed for deep content and micro-transmissions. Our nodes are synchronized, and the solar winds are favorable. Synthesize your first message above. #vite8Release #ambientWeb",
     timestamp: "1d ago",
     likes: 1024,
     reposts: 420,
@@ -134,6 +136,7 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
     const local = localStorage.getItem("aether_posts");
     return local ? JSON.parse(local) : SEED_POSTS;
   });
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem("aether_posts", JSON.stringify(posts));
@@ -372,6 +375,8 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
     <PostContext.Provider
       value={{
         posts,
+        selectedTag,
+        setSelectedTag,
         handlePublishPost,
         handleLike,
         handleRepost,

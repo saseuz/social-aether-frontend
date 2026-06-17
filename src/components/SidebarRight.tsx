@@ -1,5 +1,7 @@
 import { TrendingUp, Users, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { usePosts } from "../context/PostContext";
 
 interface Trend {
   tag: string;
@@ -14,6 +16,9 @@ interface Suggestion {
 }
 
 export default function SidebarRight() {
+  const { connections, toggleConnection } = useAuth();
+  const { selectedTag, setSelectedTag } = usePosts();
+
   const trends: Trend[] = [
     { tag: "#quantumComputing", category: "Science & Tech", posts: "12.4k transmissions" },
     { tag: "#vite8Release", category: "Development", posts: "8.2k transmissions" },
@@ -52,22 +57,35 @@ export default function SidebarRight() {
         </div>
 
         <div className="flex flex-col gap-4">
-          {trends.map((trend, idx) => (
-            <a 
-              key={idx} 
-              href={`#trend-${idx}`} 
-              className="group flex flex-col justify-between rounded-lg p-2 transition-colors duration-200 hover:bg-zinc-900/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50"
-            >
-              <div className="flex justify-between items-start">
-                <span className="font-mono text-xs text-stardust-gray">{trend.category}</span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-stardust-gray opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-hover:text-nebula-teal" />
-              </div>
-              <span className="font-display text-[15px] font-bold text-stellar-white group-hover:text-aether-glow transition-colors">
-                {trend.tag}
-              </span>
-              <span className="font-mono text-[10px] text-stardust-gray/80 mt-1">{trend.posts}</span>
-            </a>
-          ))}
+          {trends.map((trend, idx) => {
+            const isActive = selectedTag === trend.tag;
+            return (
+              <button 
+                key={idx} 
+                onClick={() => setSelectedTag(isActive ? null : trend.tag)}
+                className={`group flex flex-col justify-between rounded-xl p-2.5 transition-all duration-300 text-left border ${
+                  isActive 
+                    ? "bg-aether-glow/5 border-aether-glow/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]" 
+                    : "bg-transparent border-transparent hover:bg-zinc-900/30 hover:border-cosmic-border/10"
+                } focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 cursor-pointer`}
+              >
+                <div className="flex justify-between items-start w-full">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-stardust-gray/60">{trend.category}</span>
+                  <ArrowUpRight className={`w-3.5 h-3.5 transition-all duration-300 ${
+                    isActive 
+                      ? "opacity-100 text-aether-glow translate-x-0.5 -translate-y-0.5" 
+                      : "opacity-0 text-stardust-gray group-hover:opacity-100 group-hover:text-nebula-teal"
+                  }`} />
+                </div>
+                <span className={`font-display text-[14px] font-bold mt-1 transition-colors ${
+                  isActive ? "text-aether-glow" : "text-stellar-white group-hover:text-aether-glow"
+                }`}>
+                  {trend.tag}
+                </span>
+                <span className="font-mono text-[10px] text-stardust-gray/50 mt-1">{trend.posts}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -100,13 +118,24 @@ export default function SidebarRight() {
                 </div>
               </Link>
               
-              <Link
-                to={`/profile/${user.handle.replace("@", "")}`}
-                className="rounded-lg bg-stellar-white px-3 py-1.5 font-display text-[11px] font-bold text-space-black transition-[background-color,transform,box-shadow] duration-200 hover:bg-zinc-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stellar-white/50"
-                aria-label={`Align with ${user.name}`}
-              >
-                Align
-              </Link>
+              {connections.includes(user.handle.replace("@", "")) ? (
+                <button
+                  onClick={() => toggleConnection(user.handle)}
+                  className="rounded-lg border border-nebula-teal/30 bg-nebula-teal/5 px-2.5 py-1.5 font-display text-[10px] font-bold text-nebula-teal transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 cursor-pointer group/btn min-w-[70px] text-center"
+                  aria-label={`Disconnect from ${user.name}`}
+                >
+                  <span className="group-hover/btn:hidden">Aligned</span>
+                  <span className="hidden group-hover/btn:inline">Sever</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => toggleConnection(user.handle)}
+                  className="rounded-lg bg-stellar-white px-3 py-1.5 font-display text-[11px] font-bold text-space-black transition-[background-color,transform,box-shadow] duration-200 hover:bg-zinc-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stellar-white/50 cursor-pointer min-w-[70px] text-center"
+                  aria-label={`Align with ${user.name}`}
+                >
+                  Align
+                </button>
+              )}
             </div>
           ))}
         </div>

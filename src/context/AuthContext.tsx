@@ -14,6 +14,8 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  connections: string[];
+  toggleConnection: (username: string) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (displayName: string, username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -27,6 +29,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [connections, setConnections] = useState<string[]>([]);
+
+  // Synchronize connections from localStorage
+  useEffect(() => {
+    if (user) {
+      const follows = JSON.parse(localStorage.getItem("aether_follows") || "[]");
+      setConnections(follows.map((u: string) => u.replace("@", "")));
+    } else {
+      setConnections([]);
+    }
+  }, [user]);
+
+  const toggleConnection = (username: string) => {
+    const cleanUsername = username.replace("@", "");
+    const updated = connections.includes(cleanUsername)
+      ? connections.filter(u => u !== cleanUsername)
+      : [...connections, cleanUsername];
+    
+    setConnections(updated);
+    localStorage.setItem("aether_follows", JSON.stringify(updated));
+  };
 
   // Initialize and check for existing session
   useEffect(() => {
@@ -139,6 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     token,
     isAuthenticated: !!user,
     isLoading,
+    connections,
+    toggleConnection,
     login,
     register,
     logout,
