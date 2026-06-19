@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { useNotifications } from "./NotificationContext";
+import { apiClient } from "../services/apiClient";
 
 export interface Comment {
   id: string;
@@ -28,17 +29,21 @@ export interface Post {
   isRetransmission?: boolean;
   repostedBy?: string;
   originalPostId?: string;
+  isBookmarked?: boolean;
+  mediaUrl?: string;
+  alignment?: string;
 }
 
 interface PostContextType {
   posts: Post[];
   selectedTag: string | null;
   setSelectedTag: (tag: string | null) => void;
-  handlePublishPost: (text: string) => void;
+  handlePublishPost: (text: string, mediaUrl?: string, alignment?: string) => void;
   handleLike: (id: string) => void;
   handleRepost: (id: string) => void;
   handleAddComment: (postId: string, text: string) => void;
   handleAddCommentReply: (postId: string, commentId: string, text: string) => void;
+  handleToggleBookmark: (id: string) => void;
 }
 
 const PostContext = createContext<PostContextType | undefined>(undefined);
@@ -55,6 +60,7 @@ const SEED_POSTS: Post[] = [
     reposts: 18,
     comments: 3,
     isLiked: true,
+    isBookmarked: true,
     commentsList: [
       {
         id: "c1-1",
@@ -172,7 +178,7 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const handlePublishPost = (text: string) => {
+  const handlePublishPost = (text: string, mediaUrl?: string, alignment?: string) => {
     const newPost: Post = {
       id: Date.now().toString(),
       authorName: user?.displayName || "Aether Pilot",
@@ -183,7 +189,9 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
       likes: 0,
       reposts: 0,
       comments: 0,
-      commentsList: []
+      commentsList: [],
+      mediaUrl,
+      alignment
     };
     setPosts([newPost, ...posts]);
 
@@ -425,6 +433,35 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const handleToggleBookmark = (id: string) => {
+    setPosts(prev => {
+      const targetPost = prev.find(p => p.id === id);
+      if (!targetPost) return prev;
+      
+      const targetId = targetPost.isRetransmission && targetPost.originalPostId
+        ? targetPost.originalPostId
+        : id;
+        
+      const isCurrentlyBookmarked = !!targetPost.isBookmarked;
+
+      // API backend link
+      apiClient.post(`/posts/${targetId}/bookmark`).catch(err => {
+        console.error("Failed to sync bookmark to mock API:", err);
+      });
+
+      return prev.map(post => {
+        const isTargetOrCopy = post.id === targetId || (post.isRetransmission && post.originalPostId === targetId);
+        if (isTargetOrCopy) {
+          return {
+            ...post,
+            isBookmarked: !isCurrentlyBookmarked
+          };
+        }
+        return post;
+      });
+    });
+  };
+
   return (
     <PostContext.Provider
       value={{
@@ -435,7 +472,8 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
         handleLike,
         handleRepost,
         handleAddComment,
-        handleAddCommentReply
+        handleAddCommentReply,
+        handleToggleBookmark
       }}
     >
       {children}

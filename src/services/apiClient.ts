@@ -393,6 +393,39 @@ export const apiClient = {
         return { success: true } as T;
       }
 
+      // Mock Handler for Bookmark toggle
+      if (cleanEndpoint.startsWith("/posts/") && cleanEndpoint.endsWith("/bookmark") && options.method === "POST") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const postId = cleanEndpoint.split("/")[2];
+        const postsData = localStorage.getItem("aether_posts");
+        let isBookmarked = false;
+        if (postsData) {
+          const posts = JSON.parse(postsData);
+          const updated = posts.map((p: any) => {
+            if (p.id === postId) {
+              isBookmarked = !p.isBookmarked;
+              return { ...p, isBookmarked };
+            }
+            return p;
+          });
+          localStorage.setItem("aether_posts", JSON.stringify(updated));
+        }
+        return { success: true, isBookmarked } as T;
+      }
+
+      // Mock Handler for GET /bookmarks
+      if (cleanEndpoint === "/bookmarks" && options.method === "GET") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const postsData = localStorage.getItem("aether_posts");
+        const posts = postsData ? JSON.parse(postsData) : [];
+        const bookmarked = posts.filter((p: any) => !!p.isBookmarked);
+        return bookmarked as T;
+      }
+
       throw new ApiError({ status: 404, message: `Mock route ${cleanEndpoint} not implemented.` });
     }
 

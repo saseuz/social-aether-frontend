@@ -7,6 +7,8 @@ import SidebarLeft from "./components/SidebarLeft";
 import Feed from "./components/Feed";
 import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
+import Bookmarks from "./pages/Bookmarks";
+import Explore from "./pages/Explore";
 import SidebarRight from "./components/SidebarRight";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -31,6 +33,8 @@ function AetherLayout() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:username" element={<Profile />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/explore" element={<Explore />} />
           </Routes>
         </main>
         

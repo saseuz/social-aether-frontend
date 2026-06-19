@@ -27,10 +27,10 @@ export default function SidebarLeft() {
   const location = useLocation();
 
   const menuItems: MenuItem[] = [
-    { icon: <Compass className="w-5 h-5" />, label: "Explore", path: "#explore", matchPath: "#explore" },
+    { icon: <Compass className="w-5 h-5" />, label: "Explore", path: "/explore", matchPath: "/explore" },
     { icon: <Bell className="w-5 h-5" />, label: "Notifications", path: "/notifications", matchPath: "/notifications" },
     { icon: <Mail className="w-5 h-5" />, label: "Messages", path: "#messages", matchPath: "#messages" },
-    { icon: <Bookmark className="w-5 h-5" />, label: "Bookmarks", path: "#bookmarks", matchPath: "#bookmarks" },
+    { icon: <Bookmark className="w-5 h-5" />, label: "Bookmarks", path: "/bookmarks", matchPath: "/bookmarks" },
     { icon: <User className="w-5 h-5" />, label: "Profile", path: "/profile", matchPath: "/profile" },
     { icon: <Settings className="w-5 h-5" />, label: "Settings", path: "/profile?tab=settings", matchPath: "/profile?tab=settings" },
   ];
