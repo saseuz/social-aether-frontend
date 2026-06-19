@@ -65,10 +65,42 @@ const saveMockDB = (db: MockDB) => {
   localStorage.setItem("aether_mock_db", JSON.stringify(db));
 };
 
-const getMockNotifications = () => {
+interface MockNotification {
+  id: string;
+  type: string;
+  senderName: string;
+  senderHandle: string;
+  senderAvatarText: string;
+  postId?: string;
+  postContent?: string;
+  commentId?: string;
+  commentContent?: string;
+  timestamp: string;
+  createdAt: string;
+  isRead: boolean;
+}
+
+interface MockPost {
+  id: string;
+  authorName: string;
+  authorHandle: string;
+  avatarText: string;
+  content: string;
+  timestamp: string;
+  likes: number;
+  reposts: number;
+  comments: number;
+  isLiked?: boolean;
+  isReposted?: boolean;
+  isBookmarked?: boolean;
+  mediaUrl?: string;
+  alignment?: string;
+}
+
+const getMockNotifications = (): MockNotification[] => {
   const data = localStorage.getItem("aether_notifications");
-  if (data) return JSON.parse(data);
-  const initial = [
+  if (data) return JSON.parse(data) as MockNotification[];
+  const initial: MockNotification[] = [
     {
       id: "n-1",
       type: "system",
@@ -125,7 +157,7 @@ const getMockNotifications = () => {
   return initial;
 };
 
-const saveMockNotifications = (notifications: any[]) => {
+const saveMockNotifications = (notifications: MockNotification[]) => {
   localStorage.setItem("aether_notifications", JSON.stringify(notifications));
 };
 
@@ -364,9 +396,9 @@ export const apiClient = {
         const { id } = JSON.parse(options.body as string || "{}");
         let list = getMockNotifications();
         if (id) {
-          list = list.map((n: any) => n.id === id ? { ...n, isRead: true } : n);
+          list = list.map((n: MockNotification) => n.id === id ? { ...n, isRead: true } : n);
         } else {
-          list = list.map((n: any) => ({ ...n, isRead: true }));
+          list = list.map((n: MockNotification) => ({ ...n, isRead: true }));
         }
         saveMockNotifications(list);
         return { success: true } as T;
@@ -388,7 +420,7 @@ export const apiClient = {
         }
         const id = cleanEndpoint.split("/").pop();
         let list = getMockNotifications();
-        list = list.filter((n: any) => n.id !== id);
+        list = list.filter((n: MockNotification) => n.id !== id);
         saveMockNotifications(list);
         return { success: true } as T;
       }
@@ -402,8 +434,8 @@ export const apiClient = {
         const postsData = localStorage.getItem("aether_posts");
         let isBookmarked = false;
         if (postsData) {
-          const posts = JSON.parse(postsData);
-          const updated = posts.map((p: any) => {
+          const posts = JSON.parse(postsData) as MockPost[];
+          const updated = posts.map((p: MockPost) => {
             if (p.id === postId) {
               isBookmarked = !p.isBookmarked;
               return { ...p, isBookmarked };
@@ -421,8 +453,8 @@ export const apiClient = {
           throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
         }
         const postsData = localStorage.getItem("aether_posts");
-        const posts = postsData ? JSON.parse(postsData) : [];
-        const bookmarked = posts.filter((p: any) => !!p.isBookmarked);
+        const posts = postsData ? (JSON.parse(postsData) as MockPost[]) : [];
+        const bookmarked = posts.filter((p: MockPost) => !!p.isBookmarked);
         return bookmarked as T;
       }
 

@@ -35,9 +35,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user) {
       const follows = JSON.parse(localStorage.getItem("aether_follows") || "[]");
-      setConnections(follows.map((u: string) => u.replace("@", "")));
+      Promise.resolve().then(() => {
+        setConnections(follows.map((u: string) => u.replace("@", "")));
+      });
     } else {
-      setConnections([]);
+      Promise.resolve().then(() => {
+        setConnections([]);
+      });
     }
   }, [user]);
 
@@ -136,8 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
       });
       setUser(updatedUser);
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -150,8 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentPassword,
         newPassword,
       });
-    } catch (error) {
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -174,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import type { User } from "../context/AuthContext";
 import { usePosts } from "../context/PostContext";
 import { 
   Settings, 
@@ -28,7 +29,7 @@ export default function Profile() {
   const isSelf = !urlUsername || 
     urlUsername.toLowerCase().replace("@", "") === user?.username.toLowerCase().replace("@", "");
 
-  const [profileUser, setProfileUser] = useState<any>(null);
+  const [profileUser, setProfileUser] = useState<User | null>(null);
   const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -37,31 +38,44 @@ export default function Profile() {
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam === "settings" && isSelf) {
-      setActiveTab("settings");
-    } else {
-      setActiveTab("transmissions");
-    }
+    Promise.resolve().then(() => {
+      if (tabParam === "settings" && isSelf) {
+        setActiveTab("settings");
+      } else {
+        setActiveTab("transmissions");
+      }
+    });
   }, [searchParams, isSelf]);
 
   // Fetch profile details if viewing another user
   useEffect(() => {
     if (isSelf) {
-      setProfileUser(user);
-      setProfileError(null);
-      setLoadingProfile(false);
+      Promise.resolve().then(() => {
+        setProfileUser(user);
+        setProfileError(null);
+        setLoadingProfile(false);
+      });
     } else {
       async function fetchUserProfile() {
-        setLoadingProfile(true);
-        setProfileError(null);
+        Promise.resolve().then(() => {
+          setLoadingProfile(true);
+          setProfileError(null);
+        });
         try {
-          const profile = await apiClient.get<any>(`/users/profile/${urlUsername}`);
-          setProfileUser(profile);
-        } catch (err: any) {
+          const profile = await apiClient.get<User>(`/users/profile/${urlUsername}`);
+          Promise.resolve().then(() => {
+            setProfileUser(profile);
+          });
+        } catch (err: unknown) {
           console.error("Failed to load node profile:", err);
-          setProfileError(err?.message || "Failed to load node profile.");
+          const message = err instanceof Error ? err.message : "Failed to load node profile.";
+          Promise.resolve().then(() => {
+            setProfileError(message);
+          });
         } finally {
-          setLoadingProfile(false);
+          Promise.resolve().then(() => {
+            setLoadingProfile(false);
+          });
         }
       }
       fetchUserProfile();
@@ -108,9 +122,11 @@ export default function Profile() {
   // Keep form fields synced with user context updates
   useEffect(() => {
     if (user && isSelf) {
-      setDisplayName(user.displayName);
-      setUsername(user.username.replace("@", ""));
-      setEmail(user.email);
+      Promise.resolve().then(() => {
+        setDisplayName(user.displayName);
+        setUsername(user.username.replace("@", ""));
+        setEmail(user.email);
+      });
     }
   }, [user, isSelf]);
 
@@ -134,10 +150,11 @@ export default function Profile() {
       setStatusMessage({ type: "success", text: "Aether profile synchronized successfully." });
       
       setTimeout(() => setStatusMessage(null), 4000);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update node configuration.";
       setStatusMessage({ 
         type: "error", 
-        text: err?.message || "Failed to update node configuration." 
+        text: message 
       });
     } finally {
       setIsSaving(false);
@@ -168,10 +185,11 @@ export default function Profile() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update node key.";
       setPasswordStatusMessage({
         type: "error",
-        text: err?.message || "Failed to update node key."
+        text: message
       });
     } finally {
       setIsChangingPassword(false);

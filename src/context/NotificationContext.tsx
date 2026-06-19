@@ -49,7 +49,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // Fetch initial notifications on mount
   useEffect(() => {
-    fetchNotifications();
+    let isMounted = true;
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        fetchNotifications();
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -125,6 +133,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNotifications() {
   const context = useContext(NotificationContext);
   if (context === undefined) {

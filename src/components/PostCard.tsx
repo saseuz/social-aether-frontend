@@ -38,7 +38,7 @@ export default function PostCard({ post }: PostCardProps) {
     const parts = content.split(/(\s+)/);
     return parts.map((part, index) => {
       if (part.startsWith("#") && part.length > 1) {
-        const cleanTag = part.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+        const cleanTag = part.replace(/[^a-zA-Z0-9]/g, "");
         const isActive = selectedTag?.toLowerCase() === cleanTag.toLowerCase();
         return (
           <button

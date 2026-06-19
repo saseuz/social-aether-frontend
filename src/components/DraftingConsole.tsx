@@ -134,13 +134,9 @@ export default function DraftingConsole({ onPublish }: DraftingConsoleProps) {
     setShowAlignmentSelector(false);
     
     setTimeout(() => {
-      let finalContent = "";
-      if (!content.trim()) {
-        const randomIndex = Math.floor(Math.random() * COSMIC_IDEAS.length);
-        finalContent = COSMIC_IDEAS[randomIndex];
-      } else {
-        finalContent = translateToCosmicJargon(content);
-      }
+      const finalContent = !content.trim()
+        ? COSMIC_IDEAS[Math.floor(Math.random() * COSMIC_IDEAS.length)]
+        : translateToCosmicJargon(content);
       
       setContent(finalContent);
       setIsSynthesizing(false);

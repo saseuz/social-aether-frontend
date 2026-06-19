@@ -153,28 +153,30 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
   // Keep author names in sync with the user's updated profile info
   useEffect(() => {
     if (user) {
-      setPosts(prevPosts =>
-        prevPosts.map(post => {
-          // If the post was created by the logged-in user (match by user's ID or hardcoded system handle), update details
-          // We can match by a tag or authorHandle since we mock the pilot profile
-          const userCleanHandle = user.username.startsWith("@") ? user.username : `@${user.username}`;
-          
-          // Let's check if the post is by the current logged-in user
-          // Note: In register / initial load, user might be "zypp_pilot" or something new.
-          // We can check if authorHandle matches the current user's username or if they are both the pilot
-          const isUserPost = post.authorHandle === userCleanHandle || (post.authorHandle === "@zypp_pilot" && userCleanHandle === "@zypp_pilot");
-          
-          if (isUserPost) {
-            return {
-              ...post,
-              authorName: user.displayName,
-              authorHandle: userCleanHandle,
-              avatarText: user.avatarText
-            };
-          }
-          return post;
-        })
-      );
+      Promise.resolve().then(() => {
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            // If the post was created by the logged-in user (match by user's ID or hardcoded system handle), update details
+            // We can match by a tag or authorHandle since we mock the pilot profile
+            const userCleanHandle = user.username.startsWith("@") ? user.username : `@${user.username}`;
+            
+            // Let's check if the post is by the current logged-in user
+            // Note: In register / initial load, user might be "zypp_pilot" or something new.
+            // We can check if authorHandle matches the current user's username or if they are both the pilot
+            const isUserPost = post.authorHandle === userCleanHandle || (post.authorHandle === "@zypp_pilot" && userCleanHandle === "@zypp_pilot");
+            
+            if (isUserPost) {
+              return {
+                ...post,
+                authorName: user.displayName,
+                authorHandle: userCleanHandle,
+                avatarText: user.avatarText
+              };
+            }
+            return post;
+          })
+        );
+      });
     }
   }, [user]);
 
@@ -481,6 +483,7 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePosts() {
   const context = useContext(PostContext);
   if (context === undefined) {
