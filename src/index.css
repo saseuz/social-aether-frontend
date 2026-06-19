@@ -21,7 +21,7 @@ html, body, #root {
   background-color: var(--color-space-black);
   color: var(--color-stellar-white);
   font-family: var(--font-body);
-  overflow-x: hidden;
+  overflow-x: clip;
   color-scheme: dark;
 }
 
@@ -88,4 +88,13 @@ html, body, #root {
 
 .animate-toast {
   animation: slide-up-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hide scrollbars utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

@@ -33,18 +33,38 @@ export default function SidebarRight() {
   ];
 
   return (
-    <aside className="hidden w-80 flex-col gap-6 py-6 lg:flex xl:w-96">
-      {/* Search Bar */}
-      <div className="relative group">
-        <input 
-          type="text" 
-          aria-label="Search Aether"
-          placeholder="Search Aether… (e.g. #quantum)" 
-          className="w-full rounded-xl border border-cosmic-border bg-zinc-900/30 px-4 py-3 pl-11 font-display text-sm text-stellar-white placeholder-stardust-gray transition-[border-color,background-color,box-shadow] duration-300 focus-visible:border-aether-glow/60 focus-visible:bg-zinc-900/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/30"
-        />
-        <svg className="absolute left-4 top-3.5 h-4 w-4 text-stardust-gray transition-colors group-focus-within:text-aether-glow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+    /*
+     * KEY: sticky + self-start is the x.com scroll model.
+     *
+     * sticky top-0  → sidebar follows window scroll (no isolated container)
+     * self-start    → sidebar is only as tall as its content (flex-start align),
+     *                 not stretched to match the middle feed height.
+     *                 This means sticky works correctly: the sidebar element is
+     *                 shorter than its flex-row parent, so it can scroll within it.
+     *
+     * NO overflow-y-auto → scroll events are NOT captured by this element;
+     *                 they propagate to the window, so scrolling anywhere on the
+     *                 page (including hovering over this sidebar) scrolls the window.
+     */
+    <aside className="hidden w-80 flex-col gap-6 pt-0 pb-6 lg:flex xl:w-96 sticky top-0 self-start">
+      {/* Search Bar — sticky like feed header */}
+      <div className="sticky top-0 z-10 bg-space-black/75 backdrop-blur-md border-b border-cosmic-border py-4 -mx-0">
+        <div className="relative group">
+          <input
+            type="text"
+            aria-label="Search Aether"
+            placeholder="Search Aether… (e.g. #quantum)"
+            className="w-full rounded-xl border border-cosmic-border bg-zinc-900/30 px-4 py-3 pl-11 font-display text-sm text-stellar-white placeholder-stardust-gray transition-[border-color,background-color,box-shadow] duration-300 focus-visible:border-aether-glow/60 focus-visible:bg-zinc-900/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/30"
+          />
+          <svg
+            className="absolute left-4 top-3.5 h-4 w-4 text-stardust-gray transition-colors group-focus-within:text-aether-glow"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
       </div>
 
       {/* Network Trends Panel */}
@@ -60,26 +80,32 @@ export default function SidebarRight() {
           {trends.map((trend, idx) => {
             const isActive = selectedTag === trend.tag;
             return (
-              <button 
-                key={idx} 
+              <button
+                key={idx}
                 onClick={() => setSelectedTag(isActive ? null : trend.tag)}
                 className={`group flex flex-col justify-between rounded-xl p-2.5 transition-all duration-300 text-left border ${
-                  isActive 
-                    ? "bg-aether-glow/5 border-aether-glow/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]" 
+                  isActive
+                    ? "bg-aether-glow/5 border-aether-glow/30 shadow-[0_0_15px_rgba(99,102,241,0.1)]"
                     : "bg-transparent border-transparent hover:bg-zinc-900/30 hover:border-cosmic-border/10"
                 } focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 cursor-pointer`}
               >
                 <div className="flex justify-between items-start w-full">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-stardust-gray/60">{trend.category}</span>
-                  <ArrowUpRight className={`w-3.5 h-3.5 transition-all duration-300 ${
-                    isActive 
-                      ? "opacity-100 text-aether-glow translate-x-0.5 -translate-y-0.5" 
-                      : "opacity-0 text-stardust-gray group-hover:opacity-100 group-hover:text-nebula-teal"
-                  }`} />
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-stardust-gray/60">
+                    {trend.category}
+                  </span>
+                  <ArrowUpRight
+                    className={`w-3.5 h-3.5 transition-all duration-300 ${
+                      isActive
+                        ? "opacity-100 text-aether-glow translate-x-0.5 -translate-y-0.5"
+                        : "opacity-0 text-stardust-gray group-hover:opacity-100 group-hover:text-nebula-teal"
+                    }`}
+                  />
                 </div>
-                <span className={`font-display text-[14px] font-bold mt-1 transition-colors ${
-                  isActive ? "text-aether-glow" : "text-stellar-white group-hover:text-aether-glow"
-                }`}>
+                <span
+                  className={`font-display text-[14px] font-bold mt-1 transition-colors ${
+                    isActive ? "text-aether-glow" : "text-stellar-white group-hover:text-aether-glow"
+                  }`}
+                >
                   {trend.tag}
                 </span>
                 <span className="font-mono text-[10px] text-stardust-gray/50 mt-1">{trend.posts}</span>
@@ -101,7 +127,7 @@ export default function SidebarRight() {
         <div className="flex flex-col gap-4">
           {suggestions.map((user, idx) => (
             <div key={idx} className="flex items-center justify-between gap-3">
-              <Link 
+              <Link
                 to={`/profile/${user.handle.replace("@", "")}`}
                 className="flex items-center gap-3 group/suggestion focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 focus-visible:rounded-lg"
               >
@@ -117,7 +143,7 @@ export default function SidebarRight() {
                   </span>
                 </div>
               </Link>
-              
+
               {connections.includes(user.handle.replace("@", "")) ? (
                 <button
                   onClick={() => toggleConnection(user.handle)}
@@ -140,7 +166,7 @@ export default function SidebarRight() {
           ))}
         </div>
       </div>
-      
+
       {/* Muted Footer */}
       <div className="px-2 font-mono text-[10px] text-stardust-gray/60 flex flex-wrap gap-x-3 gap-y-1">
         <span>Aether OS v1.0.0</span>
