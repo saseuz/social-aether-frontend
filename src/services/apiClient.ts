@@ -65,6 +65,70 @@ const saveMockDB = (db: MockDB) => {
   localStorage.setItem("aether_mock_db", JSON.stringify(db));
 };
 
+const getMockNotifications = () => {
+  const data = localStorage.getItem("aether_notifications");
+  if (data) return JSON.parse(data);
+  const initial = [
+    {
+      id: "n-1",
+      type: "system",
+      senderName: "Aether Protocol",
+      senderHandle: "@aether_net",
+      senderAvatarText: "AP",
+      timestamp: "1d ago",
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      isRead: false,
+    },
+    {
+      id: "n-2",
+      type: "like",
+      senderName: "Astro Coder",
+      senderHandle: "@astro_coder",
+      senderAvatarText: "AC",
+      timestamp: "18m ago",
+      createdAt: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+      isRead: false,
+    },
+    {
+      id: "n-3",
+      type: "comment",
+      senderName: "Minimalist Lab",
+      senderHandle: "@minimalist_lab",
+      senderAvatarText: "ML",
+      commentContent: "The glassmorphic panels feel very responsive!",
+      timestamp: "2h ago",
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      isRead: true,
+    },
+    {
+      id: "n-4",
+      type: "repost",
+      senderName: "Aether Protocol",
+      senderHandle: "@aether_net",
+      senderAvatarText: "AP",
+      timestamp: "1d ago",
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000 - 1000).toISOString(),
+      isRead: true,
+    },
+    {
+      id: "n-5",
+      type: "follow",
+      senderName: "Cosmic Dev",
+      senderHandle: "@nebula_coder",
+      senderAvatarText: "CD",
+      timestamp: "2d ago",
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      isRead: true,
+    }
+  ];
+  localStorage.setItem("aether_notifications", JSON.stringify(initial));
+  return initial;
+};
+
+const saveMockNotifications = (notifications: any[]) => {
+  localStorage.setItem("aether_notifications", JSON.stringify(notifications));
+};
+
 export const apiClient = {
   getToken: (): string | null => {
     return localStorage.getItem(TOKEN_KEY);
@@ -263,6 +327,70 @@ export const apiClient = {
           avatarText: user.avatarText,
           email: user.email
         } as T;
+      }
+
+      // Mock Handler for Fetching Notifications
+      if (cleanEndpoint === "/notifications" && options.method === "GET") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        return getMockNotifications() as T;
+      }
+
+      // Mock Handler for Adding a Mock Notification (Simulated Loop)
+      if (cleanEndpoint === "/notifications" && options.method === "POST") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const body = JSON.parse(options.body as string || "{}");
+        const list = getMockNotifications();
+        const newNotif = {
+          ...body,
+          id: `n-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          timestamp: "Just now"
+        };
+        list.unshift(newNotif);
+        saveMockNotifications(list);
+        return newNotif as T;
+      }
+
+      // Mock Handler for Marking Notifications as Read
+      if (cleanEndpoint === "/notifications/mark-read" && options.method === "PUT") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const { id } = JSON.parse(options.body as string || "{}");
+        let list = getMockNotifications();
+        if (id) {
+          list = list.map((n: any) => n.id === id ? { ...n, isRead: true } : n);
+        } else {
+          list = list.map((n: any) => ({ ...n, isRead: true }));
+        }
+        saveMockNotifications(list);
+        return { success: true } as T;
+      }
+
+      // Mock Handler for Clearing All Notifications
+      if (cleanEndpoint === "/notifications" && options.method === "DELETE") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        saveMockNotifications([]);
+        return { success: true } as T;
+      }
+
+      // Mock Handler for Deleting a Single Notification
+      if (cleanEndpoint.startsWith("/notifications/") && options.method === "DELETE") {
+        if (!token) {
+          throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
+        }
+        const id = cleanEndpoint.split("/").pop();
+        let list = getMockNotifications();
+        list = list.filter((n: any) => n.id !== id);
+        saveMockNotifications(list);
+        return { success: true } as T;
       }
 
       throw new ApiError({ status: 404, message: `Mock route ${cleanEndpoint} not implemented.` });

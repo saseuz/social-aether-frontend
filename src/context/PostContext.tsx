@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import { useNotifications } from "./NotificationContext";
 
 export interface Comment {
   id: string;
@@ -132,6 +133,7 @@ const SEED_POSTS: Post[] = [
 
 export function PostProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { addMockNotification } = useNotifications();
   const [posts, setPosts] = useState<Post[]>(() => {
     const local = localStorage.getItem("aether_posts");
     return local ? JSON.parse(local) : SEED_POSTS;
@@ -184,6 +186,58 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
       commentsList: []
     };
     setPosts([newPost, ...posts]);
+
+    // Simulated social loop interactions
+    setTimeout(() => {
+      // 1. Astro Coder likes the post
+      setPosts(prev => 
+        prev.map(post => 
+          post.id === newPost.id 
+            ? { ...post, likes: post.likes + 1 } 
+            : post
+        )
+      );
+      addMockNotification({
+        type: "like",
+        senderName: "Astro Coder",
+        senderHandle: "@astro_coder",
+        senderAvatarText: "AC",
+        postId: newPost.id,
+        postContent: text.length > 60 ? text.substring(0, 60) + "..." : text,
+        timestamp: "Just now"
+      });
+    }, 4000);
+
+    setTimeout(() => {
+      // 2. Minimalist Lab comments on the post
+      const mockComment = {
+        id: `c-sim-${Date.now()}`,
+        authorName: "Minimalist Lab",
+        authorHandle: "@minimalist_lab",
+        avatarText: "ML",
+        content: "A beautiful transmission. The signals align perfectly.",
+        timestamp: "Just now",
+        replies: []
+      };
+      setPosts(prev => 
+        prev.map(post => 
+          post.id === newPost.id 
+            ? { ...post, comments: post.comments + 1, commentsList: [...(post.commentsList || []), mockComment] } 
+            : post
+        )
+      );
+      addMockNotification({
+        type: "comment",
+        senderName: "Minimalist Lab",
+        senderHandle: "@minimalist_lab",
+        senderAvatarText: "ML",
+        postId: newPost.id,
+        postContent: text.length > 60 ? text.substring(0, 60) + "..." : text,
+        commentId: mockComment.id,
+        commentContent: mockComment.content,
+        timestamp: "Just now"
+      });
+    }, 8000);
   };
 
   const handleLike = (id: string) => {

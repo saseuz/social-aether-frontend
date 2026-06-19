@@ -1,4 +1,5 @@
 import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../context/NotificationContext";
 import { Link, useLocation } from "react-router-dom";
 import { 
   Compass, 
@@ -22,11 +23,12 @@ interface MenuItem {
 
 export default function SidebarLeft() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const location = useLocation();
 
   const menuItems: MenuItem[] = [
     { icon: <Compass className="w-5 h-5" />, label: "Explore", path: "#explore", matchPath: "#explore" },
-    { icon: <Bell className="w-5 h-5" />, label: "Notifications", path: "#notifications", matchPath: "#notifications" },
+    { icon: <Bell className="w-5 h-5" />, label: "Notifications", path: "/notifications", matchPath: "/notifications" },
     { icon: <Mail className="w-5 h-5" />, label: "Messages", path: "#messages", matchPath: "#messages" },
     { icon: <Bookmark className="w-5 h-5" />, label: "Bookmarks", path: "#bookmarks", matchPath: "#bookmarks" },
     { icon: <User className="w-5 h-5" />, label: "Profile", path: "/profile", matchPath: "/profile" },
@@ -69,22 +71,33 @@ export default function SidebarLeft() {
             ? (item.path.includes("tab=settings")
               ? location.pathname === "/profile" && location.search === "?tab=settings"
               : location.pathname === "/profile" && location.search !== "?tab=settings")
-            : false;
+            : location.pathname === item.path;
 
           return (
             <Link
               key={idx}
               to={item.path}
-              className={`group flex items-center gap-4 rounded-xl px-4 py-3 transition-[background-color,color,border-color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 md:w-full ${
+              className={`group flex items-center gap-4 rounded-xl px-4 py-3 transition-[background-color,color,border-color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 md:w-full relative ${
                 isItemActive 
                   ? "bg-gradient-to-r from-aether-glow/10 to-transparent text-stellar-white border-l-2 border-aether-glow" 
                   : "text-stardust-gray hover:bg-zinc-900/60 hover:text-stellar-white"
               }`}
             >
-              <div className={`transition-transform duration-200 group-hover:scale-110 ${isItemActive ? "text-aether-glow" : ""}`}>
+              <div className={`relative transition-transform duration-200 group-hover:scale-110 ${isItemActive ? "text-aether-glow" : ""}`}>
                 {item.icon}
+                {item.label === "Notifications" && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  </span>
+                )}
               </div>
               <span className="hidden font-medium text-[15px] md:inline">{item.label}</span>
+              {item.label === "Notifications" && unreadCount > 0 && (
+                <span className="hidden md:inline-flex items-center justify-center ml-auto px-2 py-0.5 text-[10px] font-bold font-mono leading-none text-rose-100 bg-rose-600 rounded-full border border-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.3)] animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}
