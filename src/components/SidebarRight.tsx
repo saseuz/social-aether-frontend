@@ -28,7 +28,9 @@ export default function SidebarRight() {
 
   // Sync searchVal if URL query parameter changes
   useEffect(() => {
-    setSearchVal(searchParams.get("q") || "");
+    Promise.resolve().then(() => {
+      setSearchVal(searchParams.get("q") || "");
+    });
   }, [searchParams]);
 
   // Fetch dynamic trends and suggestions from backend

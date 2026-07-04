@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Radio, Shield, Save, Key, Orbit, Sparkles } from "lucide-react";
-import { useAuth, User } from "../context/AuthContext";
+import { useAuth, type User } from "../context/AuthContext";
 import { usePosts } from "../context/PostContext";
 import { apiClient } from "../services/apiClient";
 import PostCard from "../components/PostCard";

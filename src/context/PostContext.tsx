@@ -160,10 +160,14 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (IS_MOCK_MODE) {
       const local = localStorage.getItem("aether_posts");
-      setPosts(local ? JSON.parse(local) : SEED_POSTS);
+      Promise.resolve().then(() => {
+        setPosts(local ? JSON.parse(local) : SEED_POSTS);
+      });
     } else {
       if (user) {
-        fetchPosts();
+        Promise.resolve().then(() => {
+          fetchPosts();
+        });
       }
     }
   }, [user]);
@@ -178,21 +182,23 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
   // Keep author names in sync with the user's updated profile info (only in mock mode)
   useEffect(() => {
     if (IS_MOCK_MODE && user) {
-      setPosts(prevPosts =>
-        prevPosts.map(post => {
-          const userCleanHandle = user.username.startsWith("@") ? user.username : `@${user.username}`;
-          const isUserPost = post.authorHandle === userCleanHandle || (post.authorHandle === "@zypp_pilot" && userCleanHandle === "@zypp_pilot");
-          if (isUserPost) {
-            return {
-              ...post,
-              authorName: user.displayName,
-              authorHandle: userCleanHandle,
-              avatarText: user.avatarText
-            };
-          }
-          return post;
-        })
-      );
+      Promise.resolve().then(() => {
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            const userCleanHandle = user.username.startsWith("@") ? user.username : `@${user.username}`;
+            const isUserPost = post.authorHandle === userCleanHandle || (post.authorHandle === "@zypp_pilot" && userCleanHandle === "@zypp_pilot");
+            if (isUserPost) {
+              return {
+                ...post,
+                authorName: user.displayName,
+                authorHandle: userCleanHandle,
+                avatarText: user.avatarText
+              };
+            }
+            return post;
+          })
+        );
+      });
     }
   }, [user]);
 
@@ -615,6 +621,7 @@ export function PostProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePosts() {
   const context = useContext(PostContext);
   if (context === undefined) {

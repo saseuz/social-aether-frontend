@@ -58,17 +58,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Re-fetch whenever auth user changes (login / logout / re-login)
   useEffect(() => {
     if (isAuthenticated && user) {
-      setIsLoading(true);
-      setNotifications([]);
-      fetchNotifications();
+      Promise.resolve().then(() => {
+        setIsLoading(true);
+        setNotifications([]);
+        fetchNotifications();
+      });
 
       // Start polling
       if (pollTimer.current) clearInterval(pollTimer.current);
       pollTimer.current = setInterval(fetchNotifications, POLL_INTERVAL_MS);
     } else {
       // Logged out — clear notifications and stop polling
-      setNotifications([]);
-      setIsLoading(false);
+      Promise.resolve().then(() => {
+        setNotifications([]);
+        setIsLoading(false);
+      });
       if (pollTimer.current) {
         clearInterval(pollTimer.current);
         pollTimer.current = null;

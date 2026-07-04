@@ -68,20 +68,23 @@ export default function SidebarLeft() {
   const C = isCollapsed;
 
   // A single nav row — icon + optional label
-  const NavLink = ({
+  const renderNavLink = ({
     to,
     icon,
     label,
     isActive,
     badge,
+    key,
   }: {
     to: string;
     icon: React.ReactNode;
     label: string;
     isActive: boolean;
     badge?: React.ReactNode;
+    key?: React.Key;
   }) => (
     <Link
+      key={key}
       to={to}
       className={[
         "group flex items-center shrink-0 rounded-xl transition-all duration-300 ease-in-out",
@@ -151,24 +154,23 @@ export default function SidebarLeft() {
 
         {/* ── Nav items ─────────────────────────────────────────────────── */}
         <nav className={`flex flex-col gap-1 shrink-0 ${C ? "items-center w-10" : "w-full"}`}>
-          <NavLink to="/" icon={<Command className="w-5 h-5" />} label="Console" isActive={isConsoleActive} />
-          {menuItems.map((item, idx) => (
-            <NavLink
-              key={idx}
-              to={item.path}
-              icon={item.icon}
-              label={item.label}
-              isActive={getIsActive(item.path)}
-              badge={
+          {renderNavLink({ to: "/", icon: <Command className="w-5 h-5" />, label: "Console", isActive: isConsoleActive })}
+          {menuItems.map((item, idx) =>
+            renderNavLink({
+              key: idx,
+              to: item.path,
+              icon: item.icon,
+              label: item.label,
+              isActive: getIsActive(item.path),
+              badge:
                 item.label === "Notifications" && unreadCount > 0 ? (
                   <span className="absolute -top-1 -right-1 flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
                   </span>
                 ) : undefined
-              }
-            />
-          ))}
+            })
+          )}
         </nav>
 
         {/* ── Transmit button ───────────────────────────────────────────── */}

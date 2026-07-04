@@ -52,12 +52,14 @@ export default function Explore() {
   // Sync query state with url query parameters
   useEffect(() => {
     const q = searchParams.get("q") || "";
-    setSearchQuery(q);
-    if (q.startsWith("#")) {
-      setSelectedTrendingTag(q);
-    } else {
-      setSelectedTrendingTag(null);
-    }
+    Promise.resolve().then(() => {
+      setSearchQuery(q);
+      if (q.startsWith("#")) {
+        setSelectedTrendingTag(q);
+      } else {
+        setSelectedTrendingTag(null);
+      }
+    });
   }, [searchParams]);
 
   const updateSearchQuery = (val: string) => {
