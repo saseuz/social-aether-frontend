@@ -7,6 +7,7 @@ export interface User {
   displayName: string;
   username: string;
   avatarText: string;
+  connections?: string[];
 }
 
 interface AuthContextType {
@@ -15,7 +16,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   connections: string[];
-  toggleConnection: (username: string) => void;
+  toggleConnection: (username: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (displayName: string, username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -31,13 +32,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [connections, setConnections] = useState<string[]>([]);
 
-  // Synchronize connections from localStorage
+  // Synchronize connections from user or localStorage
   useEffect(() => {
     if (user) {
-      const follows = JSON.parse(localStorage.getItem("aether_follows") || "[]");
-      Promise.resolve().then(() => {
-        setConnections(follows.map((u: string) => u.replace("@", "")));
-      });
+      if (user.connections) {
+        Promise.resolve().then(() => {
+          setConnections(user.connections!.map((u: string) => u.replace("@", "")));
+        });
+      } else {
+        const follows = JSON.parse(localStorage.getItem("aether_follows") || "[]");
+        Promise.resolve().then(() => {
+          setConnections(follows.map((u: string) => u.replace("@", "")));
+        });
+      }
     } else {
       Promise.resolve().then(() => {
         setConnections([]);
@@ -45,14 +52,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const toggleConnection = (username: string) => {
+  const toggleConnection = async (username: string) => {
     const cleanUsername = username.replace("@", "");
-    const updated = connections.includes(cleanUsername)
-      ? connections.filter(u => u !== cleanUsername)
-      : [...connections, cleanUsername];
-    
-    setConnections(updated);
-    localStorage.setItem("aether_follows", JSON.stringify(updated));
+    const IS_MOCK_MODE = !import.meta.env.VITE_API_BASE_URL;
+
+    if (IS_MOCK_MODE) {
+      const updated = connections.includes(cleanUsername)
+        ? connections.filter(u => u !== cleanUsername)
+        : [...connections, cleanUsername];
+      
+      setConnections(updated);
+      localStorage.setItem("aether_follows", JSON.stringify(updated));
+    } else {
+      try {
+        const response = await apiClient.post<{ success: boolean; isFollowing: boolean }>(`/users/${cleanUsername}/follow`);
+        const updated = response.isFollowing
+          ? [...connections, cleanUsername]
+          : connections.filter(u => u !== cleanUsername);
+        setConnections(updated);
+      } catch (err) {
+        console.error("Failed to toggle follow via API:", err);
+      }
+    }
   };
 
   // Initialize and check for existing session
@@ -89,9 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       });
+      apiClient.setToken(response.token);
       setToken(response.token);
       setUser(response.user);
     } catch (error) {
+      apiClient.clearToken();
       setToken(null);
       setUser(null);
       throw error;
@@ -114,9 +137,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       });
+      apiClient.setToken(response.token);
       setToken(response.token);
       setUser(response.user);
     } catch (error) {
+      apiClient.clearToken();
       setToken(null);
       setUser(null);
       throw error;

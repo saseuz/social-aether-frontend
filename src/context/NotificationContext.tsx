@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiClient } from "../services/apiClient";
+import { useAuth } from "./AuthContext";
 
 export interface Notification {
   id: string;
@@ -30,35 +31,57 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
+const POLL_INTERVAL_MS = 30_000; // 30 seconds
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const { user, isAuthenticated } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
     try {
       const data = await apiClient.get<Notification[]>("/notifications");
-      // Sort: newest first
-      const sorted = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // Sort newest first
+      const sorted = [...data].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
       setNotifications(sorted);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  // Fetch initial notifications on mount
+  // Re-fetch whenever auth user changes (login / logout / re-login)
   useEffect(() => {
-    let isMounted = true;
-    Promise.resolve().then(() => {
-      if (isMounted) {
-        fetchNotifications();
+    if (isAuthenticated && user) {
+      setIsLoading(true);
+      setNotifications([]);
+      fetchNotifications();
+
+      // Start polling
+      if (pollTimer.current) clearInterval(pollTimer.current);
+      pollTimer.current = setInterval(fetchNotifications, POLL_INTERVAL_MS);
+    } else {
+      // Logged out — clear notifications and stop polling
+      setNotifications([]);
+      setIsLoading(false);
+      if (pollTimer.current) {
+        clearInterval(pollTimer.current);
+        pollTimer.current = null;
       }
-    });
+    }
+
     return () => {
-      isMounted = false;
+      if (pollTimer.current) {
+        clearInterval(pollTimer.current);
+        pollTimer.current = null;
+      }
     };
-  }, []);
+  }, [isAuthenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -100,13 +123,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
-  // Helper to append a notification (useful for simulated loop / offline state)
+  // Helper to optimistically append a notification (useful for real-time feel)
   const addMockNotification = async (
     notificationData: Omit<Notification, "id" | "createdAt" | "isRead">
   ) => {
     try {
-      // In a real-world backend, this might not be called directly since the server pushes notifications.
-      // But for mock mode and testing, we support it by sending a POST.
       const newNotif = await apiClient.post<Notification>("/notifications", notificationData);
       setNotifications((prev) => [newNotif, ...prev]);
     } catch (error) {

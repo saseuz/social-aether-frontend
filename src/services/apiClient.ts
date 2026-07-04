@@ -361,7 +361,26 @@ export const apiClient = {
         } as T;
       }
 
-      // Mock Handler for Fetching Notifications
+      // Mock Handler for Fetch Suggestions
+      if (cleanEndpoint === "/users/suggestions" && options.method === "GET") {
+        return [
+          { name: "Cosmic Dev", handle: "@nebula_coder", avatarText: "CD" },
+          { name: "Aesthetic Lab", handle: "@design_taste", avatarText: "AL" },
+        ] as T;
+      }
+
+      // Mock Handler for Fetch Trends
+      if (cleanEndpoint === "/trends" && options.method === "GET") {
+        return [
+          { tag: "#quantumComputing", category: "Science & Tech", posts: "12.4k transmissions" },
+          { tag: "#vite8Release", category: "Development", posts: "8.2k transmissions" },
+          { tag: "#minimalistDesign", category: "Aesthetics", posts: "24.5k transmissions" },
+          { tag: "#reactCompiler", category: "Frontend", posts: "15.9k transmissions" },
+          { tag: "#ambientWeb", category: "UX Trends", posts: "4.1k transmissions" },
+        ] as T;
+      }
+
+      // Mock Handler for Fetch Notifications
       if (cleanEndpoint === "/notifications" && options.method === "GET") {
         if (!token) {
           throw new ApiError({ status: 401, message: "Unauthenticated: Missing transmission token." });
@@ -466,6 +485,7 @@ export const apiClient = {
     const headers = new Headers(options.headers);
     
     headers.set("Content-Type", "application/json");
+    headers.set("Accept", "application/json");
     const token = apiClient.getToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);

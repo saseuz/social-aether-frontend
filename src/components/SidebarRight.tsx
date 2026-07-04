@@ -1,7 +1,9 @@
+import React, { useState, useEffect } from "react";
 import { TrendingUp, Users, ArrowUpRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { usePosts } from "../context/PostContext";
+import { apiClient } from "../services/apiClient";
 
 interface Trend {
   tag: string;
@@ -18,19 +20,47 @@ interface Suggestion {
 export default function SidebarRight() {
   const { connections, toggleConnection } = useAuth();
   const { selectedTag, setSelectedTag } = usePosts();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [searchVal, setSearchVal] = useState(searchParams.get("q") || "");
+  const [trends, setTrends] = useState<Trend[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
 
-  const trends: Trend[] = [
-    { tag: "#quantumComputing", category: "Science & Tech", posts: "12.4k transmissions" },
-    { tag: "#vite8Release", category: "Development", posts: "8.2k transmissions" },
-    { tag: "#minimalistDesign", category: "Aesthetics", posts: "24.5k transmissions" },
-    { tag: "#reactCompiler", category: "Frontend", posts: "15.9k transmissions" },
-    { tag: "#ambientWeb", category: "UX Trends", posts: "4.1k transmissions" },
-  ];
+  // Sync searchVal if URL query parameter changes
+  useEffect(() => {
+    setSearchVal(searchParams.get("q") || "");
+  }, [searchParams]);
 
-  const suggestions: Suggestion[] = [
-    { name: "Cosmic Dev", handle: "@nebula_coder", avatarText: "CD" },
-    { name: "Aesthetic Lab", handle: "@design_taste", avatarText: "AL" },
-  ];
+  // Fetch dynamic trends and suggestions from backend
+  useEffect(() => {
+    async function loadSidebarData() {
+      try {
+        const trendsData = await apiClient.get<Trend[]>("/trends");
+        setTrends(trendsData);
+      } catch (err) {
+        console.error("Failed to load trends:", err);
+      }
+
+      try {
+        const suggestionsData = await apiClient.get<Suggestion[]>("/users/suggestions");
+        setSuggestions(suggestionsData);
+      } catch (err) {
+        console.error("Failed to load user suggestions:", err);
+      }
+    }
+
+    loadSidebarData();
+  }, [connections]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (searchVal.trim()) {
+        navigate(`/explore?q=${encodeURIComponent(searchVal.trim())}`);
+      } else {
+        navigate(`/explore`);
+      }
+    }
+  };
 
   return (
     /*
@@ -54,6 +84,9 @@ export default function SidebarRight() {
             type="text"
             aria-label="Search Aether"
             placeholder="Search Aether… (e.g. #quantum)"
+            value={searchVal}
+            onChange={(e) => setSearchVal(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="w-full rounded-xl border border-cosmic-border bg-zinc-900/30 px-4 py-3 pl-11 font-display text-sm text-stellar-white placeholder-stardust-gray transition-[border-color,background-color,box-shadow] duration-300 focus-visible:border-aether-glow/60 focus-visible:bg-zinc-900/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/30"
           />
           <svg

@@ -1,94 +1,163 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
-import type { User } from "../context/AuthContext";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { Radio, Shield, Save, Key, Orbit, Sparkles } from "lucide-react";
+import { useAuth, User } from "../context/AuthContext";
 import { usePosts } from "../context/PostContext";
-import { 
-  Settings, 
-  Radio, 
-  Sparkles, 
-  ArrowLeft,
-  Mail,
-  Shield,
-  CheckCircle,
-  AlertCircle,
-  Key
-} from "lucide-react";
-import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiClient } from "../services/apiClient";
 import PostCard from "../components/PostCard";
 
+type ProfileTab = "transmissions" | "settings" | "connections";
+
 export default function Profile() {
-  const { user, updateProfile, changePassword, connections, toggleConnection } = useAuth();
-  const { posts } = usePosts();
-  
+  const { username: urlUsername } = useParams<{ username: string }>();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { username: urlUsername } = useParams<{ username?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine if viewing self or another user
-  const isSelf = !urlUsername || 
-    urlUsername.toLowerCase().replace("@", "") === user?.username.toLowerCase().replace("@", "");
+  const {
+    user: currentUser,
+    connections,
+    toggleConnection,
+    updateProfile,
+    changePassword,
+  } = useAuth();
+  const { posts } = usePosts();
 
+  const [activeTab, setActiveTab] = useState<ProfileTab>("transmissions");
   const [profileUser, setProfileUser] = useState<User | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Tab State: 'transmissions' | 'settings'
-  const [activeTab, setActiveTab] = useState<"transmissions" | "settings">("transmissions");
+  // Form states for profile parameters
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Form states for password change
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passSuccess, setPassSuccess] = useState<boolean>(false);
+  const [passError, setPassError] = useState<string | null>(null);
+
+  // Determine if viewing own node profile
+  const isSelf =
+    !urlUsername ||
+    (currentUser &&
+      urlUsername.replace("@", "").toLowerCase() ===
+        currentUser.username.replace("@", "").toLowerCase());
+
+  // Keep form fields synced with user context updates
+  useEffect(() => {
+    if (currentUser && isSelf) {
+      Promise.resolve().then(() => {
+        setDisplayName(currentUser.displayName);
+        setUsername(currentUser.username.replace("@", ""));
+        setEmail(currentUser.email);
+      });
+    }
+  }, [currentUser, isSelf]);
+
+  // Sync activeTab state from URL search parameter
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     Promise.resolve().then(() => {
       if (tabParam === "settings" && isSelf) {
         setActiveTab("settings");
+      } else if (tabParam === "connections" && isSelf) {
+        setActiveTab("connections");
       } else {
         setActiveTab("transmissions");
       }
     });
   }, [searchParams, isSelf]);
 
-  // Fetch profile details if viewing another user
+  // Sync and fetch profile details
   useEffect(() => {
-    if (isSelf) {
-      Promise.resolve().then(() => {
-        setProfileUser(user);
-        setProfileError(null);
+    async function fetchProfile() {
+      setLoadingProfile(true);
+      setErrorMsg(null);
+
+      if (isSelf) {
+        setProfileUser(currentUser);
         setLoadingProfile(false);
-      });
-    } else {
-      async function fetchUserProfile() {
-        Promise.resolve().then(() => {
-          setLoadingProfile(true);
-          setProfileError(null);
-        });
+      } else if (urlUsername) {
         try {
-          const profile = await apiClient.get<User>(`/users/profile/${urlUsername}`);
-          Promise.resolve().then(() => {
-            setProfileUser(profile);
-          });
-        } catch (err: unknown) {
+          const profileData = await apiClient.get<User>(
+            `/users/profile/${urlUsername.replace("@", "")}`
+          );
+          setProfileUser(profileData);
+        } catch (err) {
           console.error("Failed to load node profile:", err);
-          const message = err instanceof Error ? err.message : "Failed to load node profile.";
-          Promise.resolve().then(() => {
-            setProfileError(message);
-          });
+          setErrorMsg("Selected node coordinate is unreachable or offline.");
         } finally {
-          Promise.resolve().then(() => {
-            setLoadingProfile(false);
-          });
+          setLoadingProfile(false);
         }
       }
-      fetchUserProfile();
     }
-  }, [urlUsername, user, isSelf]);
 
-  // Connect/disconnect node (follow/unfollow) logic
-  const isFollowed = profileUser ? connections.includes(profileUser.username.replace("@", "")) : false;
+    fetchProfile();
+  }, [urlUsername, currentUser, isSelf]);
+
+  const handleTabChange = (tab: ProfileTab) => {
+    setActiveTab(tab);
+    if (tab === "transmissions") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab });
+    }
+  };
 
   const handleToggleFollow = () => {
     if (!profileUser) return;
     toggleConnection(profileUser.username);
   };
+
+  // Connected users state
+  const [connectedUsers, setConnectedUsers] = useState<User[]>([]);
+  const [loadingConnections, setLoadingConnections] = useState<boolean>(false);
+
+  // Sync and fetch connected users detail
+  useEffect(() => {
+    if (activeTab === "connections" && isSelf) {
+      const missingUsernames = connections.filter(
+        username => !connectedUsers.some(u => u.username.replace("@", "").toLowerCase() === username.toLowerCase())
+      );
+      if (missingUsernames.length > 0) {
+        async function fetchMissing() {
+          Promise.resolve().then(() => {
+            setLoadingConnections(true);
+          });
+          try {
+            const promises = missingUsernames.map(username =>
+              apiClient.get<User>(`/users/profile/${username}`)
+            );
+            const resolved = await Promise.all(promises);
+            Promise.resolve().then(() => {
+              setConnectedUsers(prev => {
+                const combined = [...prev, ...resolved];
+                return combined.filter(u => connections.some(c => c.toLowerCase() === u.username.replace("@", "").toLowerCase()));
+              });
+            });
+          } catch (err) {
+            console.error("Failed to load connection details:", err);
+          } finally {
+            Promise.resolve().then(() => {
+              setLoadingConnections(false);
+            });
+          }
+        }
+        fetchMissing();
+      } else {
+        // Sync list (filter out removed connections)
+        Promise.resolve().then(() => {
+          setConnectedUsers(prev => prev.filter(u => connections.some(c => c.toLowerCase() === u.username.replace("@", "").toLowerCase())));
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, connections, isSelf]);
 
 
   // Filter profile user's posts
@@ -104,212 +173,164 @@ export default function Profile() {
     .filter(post => post.authorHandle.toLowerCase() === profileCleanHandle.toLowerCase() && !post.isRetransmission)
     .reduce((sum, post) => sum + post.likes, 0);
 
-  // Settings form states
-  const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [username, setUsername] = useState(user?.username.replace("@", "") || "");
-  const [email, setEmail] = useState(user?.email || "");
-  
-  const [isSaving, setIsSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Password change states
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [passwordStatusMessage, setPasswordStatusMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Keep form fields synced with user context updates
-  useEffect(() => {
-    if (user && isSelf) {
-      Promise.resolve().then(() => {
-        setDisplayName(user.displayName);
-        setUsername(user.username.replace("@", ""));
-        setEmail(user.email);
-      });
-    }
-  }, [user, isSelf]);
-
-
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveSuccess(false);
+    setSaveError(null);
+
     if (!displayName.trim() || !username.trim() || !email.trim()) {
-      setStatusMessage({ type: "error", text: "All fields are required to maintain node alignment." });
+      setSaveError("All synchronization parameters must be populated.");
       return;
     }
 
-    setIsSaving(true);
-    setStatusMessage(null);
-
     try {
-      const cleanUsername = username.trim().startsWith("@") 
-        ? username.trim().substring(1) 
-        : username.trim();
-        
-      await updateProfile(displayName.trim(), cleanUsername, email.trim());
-      setStatusMessage({ type: "success", text: "Aether profile synchronized successfully." });
-      
-      setTimeout(() => setStatusMessage(null), 4000);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to update node configuration.";
-      setStatusMessage({ 
-        type: "error", 
-        text: message 
-      });
-    } finally {
-      setIsSaving(false);
+      await updateProfile(displayName.trim(), username.trim(), email.trim());
+      setSaveSuccess(true);
+    } catch (err) {
+      console.error(err);
+      setSaveError(err instanceof Error ? err.message : "Node update failed.");
     }
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
-      setPasswordStatusMessage({ type: "error", text: "All fields are required for node key realignment." });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordStatusMessage({ type: "error", text: "New node keys do not align." });
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordStatusMessage({ type: "error", text: "New node key must be at least 6 characters." });
+    setPassSuccess(false);
+    setPassError(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPassError("All security key fields are required.");
       return;
     }
 
-    setIsChangingPassword(true);
-    setPasswordStatusMessage(null);
+    if (newPassword !== confirmPassword) {
+      setPassError("New key does not match validation sequence.");
+      return;
+    }
 
     try {
       await changePassword(currentPassword, newPassword);
-      setPasswordStatusMessage({ type: "success", text: "Node key successfully synchronized." });
+      setPassSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to update node key.";
-      setPasswordStatusMessage({
-        type: "error",
-        text: message
-      });
-    } finally {
-      setIsChangingPassword(false);
+    } catch (err) {
+      console.error(err);
+      setPassError(err instanceof Error ? err.message : "Key rotation failed.");
     }
   };
 
   if (loadingProfile) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <Sparkles className="w-8 h-8 text-aether-glow animate-spin" />
-        <span className="font-mono text-xs text-stardust-gray animate-pulse">Resolving node sequence…</span>
+      <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-aether-glow/20 border-t-aether-glow animate-spin" />
+          <span className="font-mono text-xs text-stardust-gray/60 animate-pulse">Resolving Node Address...</span>
+        </div>
       </div>
     );
   }
 
-  if (profileError || !profileUser) {
+  if (errorMsg || !profileUser) {
     return (
-      <div className="flex-1 border-cosmic-border/50 min-w-0 md:border-r md:px-4 lg:px-6 py-12 flex flex-col items-center justify-center">
-        <AlertCircle className="w-12 h-12 text-rose-500 mb-4 animate-pulse" />
-        <h2 className="font-display text-base font-bold text-stellar-white mb-2">Node connection failed</h2>
-        <p className="font-mono text-xs text-stardust-gray/60 mb-6 text-center max-w-xs">{profileError || "Specified user node was not found."}</p>
+      <div className="flex-1 px-4 py-12 text-center border-r border-cosmic-border/50 min-h-[80vh] flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/20 flex items-center justify-center">
+          <Shield className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="font-display text-base font-bold text-stellar-white">Transmission Terminated</h2>
+          <p className="mt-2 text-xs text-stardust-gray/60 max-w-sm mx-auto leading-relaxed">{errorMsg}</p>
+        </div>
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 rounded-xl bg-zinc-900 border border-cosmic-border px-4 py-2.5 font-mono text-xs text-stellar-white hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50"
+          className="mt-2 rounded-xl border border-cosmic-border bg-zinc-950/40 px-4 py-2 font-display text-xs text-stellar-white hover:bg-zinc-900/60 transition-all cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          Go Back
+          Return to Console
         </button>
       </div>
     );
   }
+
+  const isFollowed = connections.includes(profileUser.username.replace("@", ""));
 
   return (
     <div id="profile-container" className="flex-1 border-cosmic-border/50 min-w-0 md:border-r md:px-4 lg:px-6">
-      {/* Profile Header Navigation */}
-      <header className="sticky top-0 z-10 flex items-center gap-4 border-b border-cosmic-border bg-space-black/75 backdrop-blur-md py-4 mb-6">
-        <button 
-          onClick={() => navigate("/")}
-          className="p-2 rounded-xl text-stardust-gray hover:text-stellar-white hover:bg-zinc-900/40 transition-[color,background-color] duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50"
-          title="Back to Console"
-          aria-label="Back to Console"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex flex-col">
-          <h1 className="font-display text-lg font-bold tracking-wide text-stellar-white m-0 leading-tight">
-            {profileUser?.displayName || "Aether Pilot"}
-          </h1>
-          <span className="font-mono text-[10px] text-stardust-gray/60 leading-none mt-1">
-            {transmissionsCount} {transmissionsCount === 1 ? "transmission" : "transmissions"} logged
-          </span>
-        </div>
-      </header>
+      {/* Node Profile Header Banner */}
+      <div className="relative mt-4 h-32 w-full overflow-hidden rounded-2xl border border-cosmic-border/30 bg-gradient-to-r from-indigo-950/40 via-zinc-900/30 to-purple-950/40">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.15),transparent_60%)]" />
+        <div className="absolute inset-0 bg-grid-pattern opacity-10" />
+      </div>
 
-      {/* Cosmic Banner Card */}
-      <div className="relative mb-6 overflow-hidden rounded-2xl border border-cosmic-border/40 bg-gradient-to-tr from-indigo-950/20 via-zinc-950 to-slate-900/30 p-6 flex flex-col md:flex-row items-center md:items-end justify-between gap-6">
-        {/* Background ambient light overlay */}
-        <div className="absolute inset-0 bg-radial-gradient from-aether-glow/5 via-transparent to-transparent pointer-events-none" />
-        
-        <div className="flex flex-col md:flex-row items-center md:items-end gap-5 z-10">
-          {/* Large Glassmorphic Avatar */}
-          <div className="h-20 w-20 rounded-2xl bg-gradient-to-tr from-aether-glow/20 via-nebula-teal/20 to-indigo-500/10 border-2 border-aether-glow/40 flex items-center justify-center font-display text-2xl font-extrabold text-stellar-white shadow-xl shadow-indigo-500/10">
-            {profileUser?.avatarText || "Æ"}
-          </div>
-          
-          <div className="flex flex-col items-center md:items-start text-center md:text-left">
-            <h2 className="font-display text-xl font-extrabold text-stellar-white">
-              {profileUser?.displayName}
-            </h2>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="font-mono text-xs text-aether-glow font-medium bg-aether-glow/5 border border-aether-glow/10 px-2 py-0.5 rounded-md">
-                {profileCleanHandle}
-              </span>
-              <span className="font-mono text-[10px] text-stardust-gray flex items-center gap-1">
-                <Mail className="w-3 h-3 text-stardust-gray/60" />
-                {profileUser?.email}
-              </span>
-            </div>
+      {/* Node Credentials Overlay */}
+      <div className="relative px-6 pb-6 border-b border-cosmic-border/20">
+        {/* Avatar block */}
+        <div className="absolute -top-12 left-6">
+          <div className="h-20 w-20 overflow-hidden rounded-2xl border-2 border-cosmic-border bg-gradient-to-tr from-zinc-900 via-indigo-950 to-zinc-900 flex items-center justify-center font-display text-2xl font-bold text-stellar-white shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            {profileUser.avatarText}
           </div>
         </div>
 
-        {/* Action Button & Stats Panel */}
-        <div className="flex flex-col md:flex-row items-center gap-4 z-10 w-full md:w-auto justify-center md:justify-end">
-          {!isSelf ? (
+        {/* Action Button (Self / Follow) */}
+        <div className="flex justify-end pt-4">
+          {isSelf ? (
             <button
-              onClick={handleToggleFollow}
-              className={`w-full md:w-auto px-4 py-2.5 rounded-xl font-display text-xs font-bold transition-[background-color,border-color,box-shadow,transform] duration-200 active:scale-95 border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-aether-glow/50 ${
-                isFollowed
-                  ? "bg-transparent border-cosmic-border text-stardust-gray hover:text-rose-500 hover:border-rose-500/40"
-                  : "bg-gradient-to-r from-aether-glow to-nebula-teal text-stellar-white border-transparent hover:brightness-110 hover:shadow-lg hover:shadow-indigo-500/20"
+              onClick={() => handleTabChange("settings")}
+              className={`rounded-xl border px-4 py-2 font-display text-xs font-bold transition-all duration-300 active:scale-95 cursor-pointer ${
+                activeTab === "settings"
+                  ? "bg-stellar-white border-stellar-white text-space-black hover:bg-zinc-200"
+                  : "bg-transparent border-cosmic-border text-stellar-white hover:bg-zinc-900/40"
               }`}
             >
-              {isFollowed ? "Disconnect Node" : "Connect Node"}
+              Configure Node
             </button>
-          ) : null}
+          ) : (
+            <button
+              onClick={handleToggleFollow}
+              className={`rounded-xl px-4 py-2 font-display text-xs font-bold transition-all duration-300 active:scale-95 cursor-pointer border ${
+                isFollowed
+                  ? "bg-transparent border-cosmic-border text-stardust-gray hover:text-rose-400 hover:border-rose-400/30"
+                  : "bg-gradient-to-r from-aether-glow to-nebula-teal border-transparent text-stellar-white hover:brightness-110"
+              }`}
+            >
+              {isFollowed ? "Disconnect Alignment" : "Establish Alignment"}
+            </button>
+          )}
+        </div>
 
-          <div className="flex gap-4 bg-zinc-950/40 p-4 rounded-xl border border-cosmic-border/20 backdrop-blur-sm w-full md:w-auto justify-around">
-            <div className="flex flex-col items-center px-2 border-r border-cosmic-border/10">
-              <span className="font-display text-lg font-bold text-stellar-white">{transmissionsCount}</span>
-              <span className="text-[10px] text-stardust-gray/60 uppercase tracking-wider font-mono">Waves</span>
-            </div>
-            <div className="flex flex-col items-center px-2">
-              <span className="font-display text-lg font-bold text-rose-500">{totalLikesReceived}</span>
-              <span className="text-[10px] text-stardust-gray/60 uppercase tracking-wider font-mono">Likes</span>
-            </div>
+        {/* User Identity Parameters */}
+        <div className="mt-4">
+          <h1 className="font-display text-lg font-bold text-stellar-white leading-tight">
+            {profileUser.displayName}
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-3 mt-1.5 font-mono text-[10px] text-stardust-gray/80">
+            <span className="text-aether-glow font-semibold">
+              {profileUser.username.startsWith("@") ? profileUser.username : `@${profileUser.username}`}
+            </span>
+            <span className="text-stardust-gray/30">•</span>
+            <span>{profileUser.email}</span>
+          </div>
+        </div>
+
+        {/* Stats segment */}
+        <div className="flex items-center gap-6 mt-6 pt-4 border-t border-cosmic-border/10 font-mono text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-stellar-white">{transmissionsCount}</span>
+            <span className="text-stardust-gray/60 uppercase text-[10px] tracking-wider">Transmissions</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-stellar-white">{totalLikesReceived}</span>
+            <span className="text-stardust-gray/60 uppercase text-[10px] tracking-wider">Likes Logged</span>
           </div>
         </div>
       </div>
 
-      {/* Tabs Navigation */}
+      {/* Tab Segment Controls */}
       {isSelf ? (
-        <div className="flex border-b border-cosmic-border/30 mb-6 gap-2">
+        <div className="flex border-b border-cosmic-border/30 mb-6 font-display text-xs uppercase tracking-wider font-bold">
           <button
-            onClick={() => {
-              setActiveTab("transmissions");
-              setStatusMessage(null);
-            }}
-            className={`flex items-center gap-2 px-5 py-3 font-display text-xs font-bold tracking-wider uppercase border-b-2 transition-[color,border-color] duration-150 focus-visible:outline-none ${
+            onClick={() => handleTabChange("transmissions")}
+            className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-all duration-300 cursor-pointer ${
               activeTab === "transmissions"
-                ? "border-aether-glow text-stellar-white"
+                ? "border-aether-glow text-stellar-white bg-aether-glow/5"
                 : "border-transparent text-stardust-gray/60 hover:text-stellar-white"
             }`}
           >
@@ -317,18 +338,26 @@ export default function Profile() {
             Transmissions
           </button>
           <button
-            onClick={() => {
-              setActiveTab("settings");
-              setStatusMessage(null);
-            }}
-            className={`flex items-center gap-2 px-5 py-3 font-display text-xs font-bold tracking-wider uppercase border-b-2 transition-[color,border-color] duration-150 focus-visible:outline-none ${
+            onClick={() => handleTabChange("settings")}
+            className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-all duration-300 cursor-pointer ${
               activeTab === "settings"
-                ? "border-aether-glow text-stellar-white"
+                ? "border-aether-glow text-stellar-white bg-aether-glow/5"
                 : "border-transparent text-stardust-gray/60 hover:text-stellar-white"
             }`}
           >
-            <Settings className="w-3.5 h-3.5" />
+            <Shield className="w-3.5 h-3.5" />
             Node Settings
+          </button>
+          <button
+            onClick={() => handleTabChange("connections")}
+            className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-all duration-300 cursor-pointer ${
+              activeTab === "connections"
+                ? "border-aether-glow text-stellar-white bg-aether-glow/5"
+                : "border-transparent text-stardust-gray/60 hover:text-stellar-white"
+            }`}
+          >
+            <Orbit className="w-3.5 h-3.5" />
+            Connections
           </button>
         </div>
       ) : (
@@ -356,6 +385,62 @@ export default function Profile() {
               </div>
             )}
           </div>
+        ) : activeTab === "connections" ? (
+          /* Connections List View */
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-cosmic-border/10 mb-2">
+              <Orbit className="w-4 h-4 text-nebula-teal" />
+              <h3 className="font-display text-sm font-bold text-stellar-white uppercase tracking-wider">
+                Aligned Node Connections ({connections.length})
+              </h3>
+            </div>
+            
+            {loadingConnections && connectedUsers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Sparkles className="w-6 h-6 text-nebula-teal animate-spin" />
+                <span className="font-mono text-xs text-stardust-gray/60 animate-pulse">Scanning frequencies...</span>
+              </div>
+            ) : connections.length === 0 ? (
+              <div className="text-center py-12 px-4 glass-panel rounded-2xl border border-cosmic-border/20">
+                <Orbit className="w-8 h-8 mx-auto text-stardust-gray/40 mb-3 animate-pulse" />
+                <h3 className="font-display text-sm font-semibold text-stellar-white">No Alignments Established</h3>
+                <p className="mt-1 text-xs text-stardust-gray/50 max-w-xs mx-auto">
+                  Your node signal has no active connections. Explore other nodes in the network to establish alignments.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {connectedUsers.map((u) => (
+                  <div key={u.id} className="glass-panel p-4 rounded-xl border border-cosmic-border/20 flex items-center justify-between gap-4">
+                    <div 
+                      onClick={() => navigate(`/profile/${u.username.replace("@", "")}`)}
+                      className="flex items-center gap-3 group cursor-pointer focus-visible:outline-none"
+                    >
+                      <div className="h-10 w-10 overflow-hidden rounded-lg bg-gradient-to-tr from-indigo-950 to-zinc-900 border border-cosmic-border/30 flex items-center justify-center font-bold text-sm text-stellar-white group-hover:border-aether-glow/40 transition-colors">
+                        {u.avatarText}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-display text-xs font-bold text-stellar-white group-hover:text-aether-glow transition-colors">
+                          {u.displayName}
+                        </span>
+                        <span className="font-mono text-[10px] text-stardust-gray mt-0.5">
+                          {u.username.startsWith("@") ? u.username : `@${u.username}`}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleConnection(u.username)}
+                      className="rounded-lg border border-nebula-teal/30 bg-nebula-teal/5 px-3 py-1.5 font-display text-[10px] font-bold text-nebula-teal transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 cursor-pointer group/btn min-w-[90px] text-center"
+                      aria-label={`Disconnect from ${u.displayName}`}
+                    >
+                      <span className="group-hover/btn:hidden">Aligned</span>
+                      <span className="hidden group-hover/btn:inline">Sever</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           /* Settings View (Profile Settings & Password Change) */
           <div className="flex flex-col gap-6">
@@ -367,203 +452,129 @@ export default function Profile() {
                   <h3 className="font-display text-sm font-bold text-stellar-white uppercase tracking-wider">Node Synchronization Parameters</h3>
                 </div>
 
-                {/* Status Message */}
-                {statusMessage ? (
-                  <div className={`p-3 rounded-xl text-xs flex gap-2.5 items-start border ${
-                    statusMessage.type === "success" 
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                      : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                  }`}>
-                    {statusMessage.type === "success" ? (
-                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    )}
-                    <span>{statusMessage.text}</span>
-                  </div>
-                ) : null}
-
-                {/* Display Name Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="settings-displayname" className="font-mono text-[10px] text-stardust-gray/70 uppercase tracking-wider">
-                    Pilot Display Name
-                  </label>
+                  <label htmlFor="displayName" className="font-mono text-[10px] text-stardust-gray uppercase tracking-wider">Display Designation</label>
                   <input
-                    id="settings-displayname"
                     type="text"
+                    id="displayName"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    className="bg-zinc-950/40 text-xs text-stellar-white border border-cosmic-border/30 rounded-xl px-3.5 py-2.5 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 focus-visible:outline-none transition-[border-color,box-shadow] duration-200 font-sans"
-                    placeholder="e.g. Commander Shepard"
-                    required
+                    className="w-full rounded-xl border border-cosmic-border bg-zinc-950/40 px-4 py-2.5 font-sans text-xs text-stellar-white outline-none focus:border-aether-glow/50 transition-colors"
                   />
                 </div>
 
-                {/* Username/Handle Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="settings-username" className="font-mono text-[10px] text-stardust-gray/70 uppercase tracking-wider">
-                    Node Handle Identifier
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3.5 font-mono text-xs text-aether-glow select-none pointer-events-none">@</span>
+                  <label htmlFor="username" className="font-mono text-[10px] text-stardust-gray uppercase tracking-wider">Unique Node Handle</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-2.5 font-mono text-xs text-stardust-gray/50">@</span>
                     <input
-                      id="settings-username"
                       type="text"
+                      id="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="w-full bg-zinc-950/40 text-xs text-stellar-white border border-cosmic-border/30 rounded-xl pl-7 pr-3.5 py-2.5 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 focus-visible:outline-none transition-[border-color,box-shadow] duration-200 font-sans"
-                      placeholder="handle_id"
-                      required
+                      className="w-full rounded-xl border border-cosmic-border bg-zinc-950/40 pl-8 pr-4 py-2.5 font-sans text-xs text-stellar-white outline-none focus:border-aether-glow/50 transition-colors"
                     />
                   </div>
-                  <p className="text-[10px] text-stardust-gray/40 font-mono mt-0.5">
-                    Handles must be alphanumeric identifiers without spaces, used for routing and mentions.
-                  </p>
                 </div>
 
-                {/* Email Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="settings-email" className="font-mono text-[10px] text-stardust-gray/70 uppercase tracking-wider">
-                    Node Frequency (Email)
-                  </label>
+                  <label htmlFor="email" className="font-mono text-[10px] text-stardust-gray uppercase tracking-wider">Node Communications Email</label>
                   <input
-                    id="settings-email"
                     type="email"
+                    id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-zinc-950/40 text-xs text-stellar-white border border-cosmic-border/30 rounded-xl px-3.5 py-2.5 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 focus-visible:outline-none transition-[border-color,box-shadow] duration-200 font-sans"
-                    placeholder="name@aether.net"
-                    required
+                    className="w-full rounded-xl border border-cosmic-border bg-zinc-950/40 px-4 py-2.5 font-sans text-xs text-stellar-white outline-none focus:border-aether-glow/50 transition-colors"
                   />
                 </div>
 
-                {/* Submit Button */}
+                {saveSuccess && (
+                  <div className="p-3.5 rounded-xl border border-nebula-teal/20 bg-nebula-teal/5 text-nebula-teal font-mono text-[10px] tracking-wide">
+                    Node parameters successfully synchronized.
+                  </div>
+                )}
+
+                {saveError && (
+                  <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 font-mono text-[10px] tracking-wide">
+                    Synchronization failed: {saveError}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={isSaving}
-                  className={`w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-aether-glow to-nebula-teal px-4 py-3 font-display text-xs font-bold tracking-wide text-stellar-white transition-[background-color,box-shadow,transform,filter] duration-300 hover:shadow-lg hover:shadow-indigo-500/20 hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aether-glow/50 ${
-                    isSaving ? "opacity-75 cursor-not-allowed" : ""
-                  }`}
+                  className="rounded-xl bg-stellar-white py-2.5 font-display text-xs font-bold text-space-black transition-all hover:bg-zinc-200 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  {isSaving ? (
-                    <>
-                      <Sparkles className="w-4 h-4 animate-spin" />
-                      <span>Synchronizing Node...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Update Node Profile</span>
-                    </>
-                  )}
+                  <Save className="w-3.5 h-3.5" />
+                  Save Parameters
                 </button>
               </div>
             </form>
 
-            {/* Change Password Form */}
-            <form onSubmit={handleChangePassword}>
+            {/* Password Rotation Form */}
+            <form onSubmit={handlePasswordChange}>
               <div className="glass-panel p-6 rounded-2xl border border-cosmic-border/30 flex flex-col gap-5">
                 <div className="flex items-center gap-2 pb-3 border-b border-cosmic-border/10">
-                  <Key className="w-4 h-4 text-aether-glow" />
-                  <h3 className="font-display text-sm font-bold text-stellar-white uppercase tracking-wider">Node Key Realignment</h3>
+                  <Key className="w-4 h-4 text-nebula-teal" />
+                  <h3 className="font-display text-sm font-bold text-stellar-white uppercase tracking-wider">Security Key Rotation</h3>
                 </div>
 
-                {/* Password Status Message */}
-                {passwordStatusMessage ? (
-                  <div className={`p-3 rounded-xl text-xs flex gap-2.5 items-start border ${
-                    passwordStatusMessage.type === "success" 
-                      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                      : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                  }`}>
-                    {passwordStatusMessage.type === "success" ? (
-                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    )}
-                    <span>{passwordStatusMessage.text}</span>
-                  </div>
-                ) : null}
-
-                {/* Current Password Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="password-current" className="font-mono text-[10px] text-stardust-gray/70 uppercase tracking-wider">
-                    Current Node Key
-                  </label>
+                  <label htmlFor="currentPassword" className="font-mono text-[10px] text-stardust-gray uppercase tracking-wider">Active Security Key</label>
                   <input
-                    id="password-current"
-                    name="current-password"
-                    autoComplete="current-password"
                     type="password"
+                    id="currentPassword"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="bg-zinc-950/40 text-xs text-stellar-white border border-cosmic-border/30 rounded-xl px-3.5 py-2.5 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 focus-visible:outline-none transition-[border-color,box-shadow] duration-200 font-sans"
-                    placeholder="••••••••"
-                    required
+                    className="w-full rounded-xl border border-cosmic-border bg-zinc-950/40 px-4 py-2.5 font-sans text-xs text-stellar-white outline-none focus:border-aether-glow/50 transition-colors"
                   />
                 </div>
 
-                {/* New Password Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="password-new" className="font-mono text-[10px] text-stardust-gray/70 uppercase tracking-wider">
-                    New Node Key
-                  </label>
+                  <label htmlFor="newPassword" className="font-mono text-[10px] text-stardust-gray uppercase tracking-wider">New Security Key</label>
                   <input
-                    id="password-new"
-                    name="new-password"
-                    autoComplete="new-password"
                     type="password"
+                    id="newPassword"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-zinc-950/40 text-xs text-stellar-white border border-cosmic-border/30 rounded-xl px-3.5 py-2.5 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 focus-visible:outline-none transition-[border-color,box-shadow] duration-200 font-sans"
-                    placeholder="••••••••"
-                    required
+                    className="w-full rounded-xl border border-cosmic-border bg-zinc-950/40 px-4 py-2.5 font-sans text-xs text-stellar-white outline-none focus:border-aether-glow/50 transition-colors"
                   />
                 </div>
 
-                {/* Confirm Password Input */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="password-confirm" className="font-mono text-[10px] text-stardust-gray/70 uppercase tracking-wider">
-                    Confirm New Node Key
-                  </label>
+                  <label htmlFor="confirmPassword" className="font-mono text-[10px] text-stardust-gray uppercase tracking-wider">Verify New Security Key</label>
                   <input
-                    id="password-confirm"
-                    name="confirm-password"
-                    autoComplete="new-password"
                     type="password"
+                    id="confirmPassword"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-zinc-950/40 text-xs text-stellar-white border border-cosmic-border/30 rounded-xl px-3.5 py-2.5 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 focus-visible:outline-none transition-[border-color,box-shadow] duration-200 font-sans"
-                    placeholder="••••••••"
-                    required
+                    className="w-full rounded-xl border border-cosmic-border bg-zinc-950/40 px-4 py-2.5 font-sans text-xs text-stellar-white outline-none focus:border-aether-glow/50 transition-colors"
                   />
                 </div>
 
-                {/* Submit Change Password Button */}
+                {passSuccess && (
+                  <div className="p-3.5 rounded-xl border border-nebula-teal/20 bg-nebula-teal/5 text-nebula-teal font-mono text-[10px] tracking-wide">
+                    Security key successfully rotated.
+                  </div>
+                )}
+
+                {passError && (
+                  <div className="p-3.5 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 font-mono text-[10px] tracking-wide">
+                    Rotation failed: {passError}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={isChangingPassword}
-                  className={`w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-aether-glow to-nebula-teal px-4 py-3 font-display text-xs font-bold tracking-wide text-stellar-white transition-[background-color,box-shadow,transform,filter] duration-300 hover:shadow-lg hover:shadow-indigo-500/20 hover:brightness-110 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-aether-glow/50 ${
-                    isChangingPassword ? "opacity-75 cursor-not-allowed" : ""
-                  }`}
+                  className="rounded-xl bg-transparent border border-cosmic-border py-2.5 font-display text-xs font-bold text-stellar-white transition-all hover:bg-zinc-900/40 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  {isChangingPassword ? (
-                    <>
-                      <Key className="w-4 h-4 animate-spin" />
-                      <span>Synchronizing Node Key...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Key className="w-4 h-4" />
-                      <span>Realign Node Key</span>
-                    </>
-                  )}
+                  <Key className="w-3.5 h-3.5 text-nebula-teal" />
+                  Rotate Security Key
                 </button>
               </div>
             </form>
           </div>
         )}
       </div>
-
     </div>
   );
 }

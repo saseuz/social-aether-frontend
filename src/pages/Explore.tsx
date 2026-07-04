@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Search, Compass, Orbit, Plus, Check } from "lucide-react";
 import { usePosts } from "../context/PostContext";
 import { useAuth } from "../context/AuthContext";
@@ -44,21 +44,43 @@ const TRENDING_TAGS = [
 export default function Explore() {
   const { posts } = usePosts();
   const { connections, toggleConnection } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [selectedTrendingTag, setSelectedTrendingTag] = useState<string | null>(null);
+
+  // Sync query state with url query parameters
+  useEffect(() => {
+    const q = searchParams.get("q") || "";
+    setSearchQuery(q);
+    if (q.startsWith("#")) {
+      setSelectedTrendingTag(q);
+    } else {
+      setSelectedTrendingTag(null);
+    }
+  }, [searchParams]);
+
+  const updateSearchQuery = (val: string) => {
+    setSearchQuery(val);
+    if (val.trim()) {
+      setSearchParams({ q: val.trim() });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const handleTagClick = (tag: string) => {
     if (selectedTrendingTag === tag) {
       setSelectedTrendingTag(null);
-      setSearchQuery("");
+      updateSearchQuery("");
     } else {
       setSelectedTrendingTag(tag);
-      setSearchQuery(tag);
+      updateSearchQuery(tag);
     }
   };
 
   const clearSearch = () => {
-    setSearchQuery("");
+    updateSearchQuery("");
     setSelectedTrendingTag(null);
   };
 
@@ -84,10 +106,9 @@ export default function Explore() {
             placeholder="Search Aether... (e.g. #quantumComputing, @astro)"
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setSelectedTrendingTag(null);
+              updateSearchQuery(e.target.value);
             }}
-            className="w-full pl-11 pr-10 py-3 rounded-2xl border border-cosmic-border bg-zinc-950/40 text-sm text-stellar-white placeholder-stardust-gray/40 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 transition-all duration-300 font-sans"
+            className="w-full pl-11 pr-10 py-3 rounded-2xl border border-cosmic-border bg-zinc-955/40 text-sm text-stellar-white placeholder-stardust-gray/40 outline-none focus:border-aether-glow/50 focus:ring-1 focus:ring-aether-glow/30 transition-all duration-300 font-sans"
           />
           {searchQuery && (
             <button
